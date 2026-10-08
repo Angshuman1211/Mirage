@@ -360,3 +360,126 @@ Track-2 delivered the OOT packages for WASP-96b (NIRISS) and K2-18b (NIRISS + G3
 **D4 VALIDATED — domain randomisation is preferred over CycleGAN translation.**
 
 Structured randomisation (correlated noise injection) reduces the distributional gap to the real domain more effectively than generative translation. This confirms the blueprint decision: domain randomisation is the primary strategy; CycleGAN is not worth the added training complexity for this problem. Results saved to `configs/cyclegan/ablation_results.json`.
+
+---
+
+### P5-D4 — The χ² numbers never reconciled because the flow and NS sides used different error floors [Phase 5, 2026-10-06, reporting bug — found via Sim2Science review]
+
+**Trigger.** Sim2Science reviewer T46u: the reported χ² values are mutually inconsistent (301 in the abstract, 38.4 in Table 1, "near 2.5" in the text), and the calibrated 0.06 sits *below* the nested-sampling best fit of 0.76 on the same model and data, which is impossible if the transported samples follow p_NS. The objection was correct. The cause was not the sampling.
+
+**Root cause — two different error budgets, never reconciled:**
+- Flow side (`scripts/real_ess.py:125`, `scripts/benchmark_table.py:28`) — `sig_eff = sqrt(sig² + (0.05·x)²)`, a **5%** forward-model systematic floor (the WI-1 estimate).
+- NS side (`scripts/taurex_retrieve.py:36,71`) — `err = sqrt(err² + (FLOOR·depth)²)` with `FLOOR` defaulting to **0.01**, i.e. **1%**. The in-file comment explains why: a 5% floor drowned the features and produced a degenerate cold-T reference.
+
+χ² scales as 1/σ², so a 5× larger systematic floor deflates the flow's χ² by up to ~25×. Both floors are individually defensible. Reporting numbers from both side by side is not.
+
+**Audit (best-fit χ²/N recomputed under both floors, 47 real-covered bins, WASP-39b unless noted):**
+
+| arm | χ² @ 5% floor (as reported) | χ² @ 1% floor (NS-comparable) |
+|---|---|---|
+| rad · nocond | **0.061** ← the paper's "0.06" | 1.441 |
+| rad · σ-only | 0.132 | 3.177 |
+| rad · σ+cov | 0.116 | 2.732 |
+| OT-calibrated | 0.028 | **0.662** |
+| NS free-radius anchor | — | **0.761** |
+| K2-18b cov (149 bins) | 0.199 | 1.180 (NS 1.277) |
+
+WASP-96b NS anchor = 0.793.
+
+**Findings.**
+1. **Every χ² in the paper is at the 1% floor except the headline 0.06, which is at 5%.** P3-D7 recorded 301 at the 1% floor and explicitly noted that *"the 5% floor was masking MIRAGE's poor fit"*; the post-radius evaluation then went back to 5%. So "301 → 0.06" silently switches error models mid-claim and inflates the improvement by ~25×.
+2. **Corrected headline, at a uniform 1% floor: 301 → 1.44 (radius added) → 0.66 (after OT calibration), against an NS anchor of 0.76.** Still a ~200× improvement from the radius fix. Not 5000×.
+3. **The reviewer's "impossible ordering" dissolves.** At a common floor the calibrated flow (0.662) sits essentially on the NS anchor (0.761), the small margin being best-of-N sample selection. Same pattern on the other targets. The numbers no longer contradict each other.
+4. **Second, separate error: 0.061 is the *nocond* arm.** The OT-calibrated arm is 0.028. §4 pairs "after the OT calibration" with 0.06, which is not the calibrated arm's number. Whichever was intended, the sentence as written is wrong.
+5. **This corroborates the circularity reading rather than rescuing the method.** The calibrated posterior landing on top of the NS anchor is exactly what the transport guarantees. The radius fix remains a genuine, large effect; the calibration remains a relabelling of p_NS.
+
+**Decision.** Report every χ² at a **single stated floor**. Use 1%, because that is what the NS anchors, the 301 baseline and the Table 1 ruling-out matrix all already use — moving NS to 5% would re-introduce the cold-T degeneracy the 1% floor was chosen to break. State the floor explicitly in the table caption. Never again quote a χ² without the error budget attached.
+
+**Audit script:** `scratchpad/chi2_floor_audit.py` (recomputes every arm under both floors from `data/real_ess/*.npz`; fold into `benchmark_table.py` as a regression check).
+
+**Lesson.** The one quantity that had been explicitly "verified" was the one that broke, because verification stopped at *where the number came from* and never reached *what error model produced it*. A number is not verified until its denominator is.
+
+---
+
+### P5-D5 — The OT calibration is an inflated Gaussian centred on the NS anchor; coverage 7/7 was structurally guaranteed [Phase 5, 2026-10-07, MAJOR — retires the P3-D13 claim]
+
+**Trigger.** Sim2Science reviewer T46u argued the calibration is circular. Tested it directly against files already on disk rather than by argument.
+
+**The code already said it.** `scripts/ot_calibrate.py` docstring, lines 7–9: *"Gaussian (Bures) OT transports the FMPE posterior N(μ_f,Σ_f) onto the NS-anchor posterior N(μ_n,Σ_n); **the pushforward IS N(μ_n,Σ_n)**."* The reviewer independently re-derived a sentence sitting in my own source. The OT output is then used as an IS proposal, so the reweighting could in principle pull it back toward the true posterior.
+
+**Measured on real WASP-39b** (`scratchpad/ot_vs_ns_moments.py`, 5% floor as reported):
+
+| quantity | OT-calibrated vs NS anchor |
+|---|---|
+| mean centre offset | **0.46 σ_NS** (every one of 7 params within 0.95 σ) |
+| mean width ratio | **2.08×** NS width |
+| IS-ESS | **12.4 of 6312 samples** |
+
+The ~2× width is the `inflate=1.5` default in `fit()` plus the reweighting. At ESS ≈ 12 the IS step is effectively inoperative, so the final posterior stays where the transport put it.
+
+**Conclusion.** The calibrated posterior is an inflated Gaussian centred on the NS anchor. Intervals centred on the NS values and twice as wide as the NS spread **cannot fail** to contain those values, so the reported coverage 7/7 was guaranteed before any data was examined. The reviewer's "discard the network and sample p_NS directly" is empirically correct, and would in fact give a *tighter* (better) width. **P3-D13's "CALIBRATION SUCCESS by coverage (7/7)" is retired.** The radius fix (P3-D11/D12) is unaffected and remains a real, large effect.
+
+**Consequence for v2.** Framing option C (build a genuinely amortized calibration) is closed on the current method — there is nothing to rescue, only something to rebuild. The expensive synthetic known-truth coverage run is no longer worth doing as a *rescue*; it is only worth doing if the honest negative is to be *published* with a number attached (framing B).
+
+---
+
+### P5-D6 — `real_ess_samples.npz` is a shared filename across planets; two downstream scripts read it blind [Phase 5, 2026-10-07, latent data-corruption bug]
+
+**Found while doing P5-D5.** `real_ess.py:102` always writes `data/real_ess/real_ess_samples.npz` regardless of `--arm`, with no planet or arm stamp. The last run wins. It currently holds **K2-18b**:
+
+```
+real_ess_samples.npz   bins=149/150  median_depth=0.00294  wl=[0.85,5.17]   <- K2-18b
+k218cov_samples.npz    bins=149/150  median_depth=0.00294  wl=[0.85,5.17]
+ot_cal_samples.npz     bins= 47/52   median_depth=0.02127  wl=[0.55,5.24]   <- WASP-39b
+```
+
+Two consumers read that generic name assuming WASP-39b:
+- `taurex_retrieve.py:64` — the NS observation input. Re-running an anchor today fits the **K2-18b** spectrum and saves it under a WASP-39b filename.
+- `ot_calibrate.py:39` — the posterior to transport, while line 44 hardcodes `wasp39b_ns_posterior_fitrad.npz`. Re-running `--fit` today transports **K2-18b's** flow posterior onto **WASP-39b's** NS anchor.
+
+`real_ess.py:105` also prints "on real WASP-39b input" unconditionally, so the log actively confirms the wrong thing.
+
+**Published numbers are safe** — `ot_cal_samples.npz` carries WASP-39b's 47 bins, so it was produced when the generic file was correct. **The danger is forward-looking:** Track 1 item 5 of the v2 plan is "re-run the NS anchors at higher live points", which walks straight into this on the first command.
+
+**Decision.** Make every observation file self-identifying and make the consumers refuse to guess:
+1. `real_ess.py` stamps `arm` and `planet` into the npz, writes a per-arm copy `real_ess_samples_{arm}.npz` alongside the generic name, and reports the actual planet in its log line.
+2. `taurex_retrieve.py` and `ot_calibrate.py` take an explicit `--obs-npz`, and assert the stamped planet matches what was asked for. Unstamped legacy files fall back to a wavelength-range/bin-count check rather than silently proceeding.
+
+The `--obs-npz` flag is needed regardless — the synthetic known-truth experiment requires pointing NS at arbitrary observation files.
+
+**Lesson.** A pipeline stage that writes one fixed filename for N different inputs is a correctness bug waiting for the second input. Stamp provenance into the artefact, not into the filename convention alone.
+
+---
+
+### P5-D7 — Fig 2 audit: the spectra fits are fine, the radius posteriors are not [Phase 5, 2026-10-08, result — qualifies P5-D5]
+
+**Trigger.** Sim2Science reviewer Viae made two claims about Figure 2: *"all inferred spectra look really bad fits, several features are completely off"* and *"the planet radius is not well recovered, in particular for K2-18b."* Tested both (`scratchpad/fit_quality_audit.py`).
+
+**Claim (a) — NOT supported. The fits are good.** Best-fit residuals at the 1% floor:
+
+| target | χ²/N | max resid | bins >2σ | bins >3σ |
+|---|---|---|---|---|
+| WASP-39b (OT-cal) | 0.662 | 1.60σ | 0/47 | 0 |
+| WASP-39b (nocond) | 1.441 | 2.26σ | 5/47 | 0 |
+| WASP-96b | 0.771 | 2.45σ | 1/90 | 0 |
+| K2-18b | 1.180 | 2.87σ | 8/149 | 0 |
+
+**No bin on any target exceeds 3σ**, and the 2σ counts sit at or below chance expectation (≈2/47, ≈7/149). Nothing is "completely off." This is a **plotting defect, not a fit defect** — most plausibly the Fig 2 error bars are drawn at the raw measurement σ without the systematic floor, so residuals appear several times larger than they are. Consistent with T46u independently calling both figures unreadable at print size. **This objection is rebuttable, and fixing the figure removes it.**
+
+**Claim (b) — CONFIRMED, and the cause is worse than stated.** Radius 68% credible interval vs the literature value, at both floors:
+
+| target | floor 1% | floor 5% | literature | truth inside? |
+|---|---|---|---|---|
+| WASP-39b (OT-cal) | [1.2263, 1.2345] ESS 42.5 | [1.2188, 1.2388] ESS 12.4 | 1.279 | **no, at both** |
+| WASP-96b | [1.1924, 1.2012] ESS 7.5 | [1.1757, 1.2084] ESS 9.1 | 1.200 | **yes, at both** |
+| K2-18b | [0.2323, 0.2323] ESS 1.31 | [0.2315, 0.2337] ESS 11.3 | 0.2352 | **no, at both** |
+
+**Only WASP-96b recovers the literature radius inside its own uncertainty.** WASP-39b misses by ~12× its half-width. The conclusion is robust to the floor choice.
+
+**Underlying cause — importance-weight collapse.** At the 1% floor a *single* sample carries 99.95% of the weight for WASP-39b-nocond and 87% for K2-18b, so those "posteriors" are point masses and the 68% interval has essentially zero width. ESS ranges from 1.00 to 42.5 out of 1000–6312 draws. **Every credible interval quoted from a low-ESS arm is not a credible interval.** This is the same pathology recorded as an "efficiency artifact" in P3-D12, but it propagates into the reported uncertainties, which was not recognised then.
+
+**The Table 2 coverage numbers traced.** 7/7 / 7/7 / 6/7 are coverage of the **NS values** inside MIRAGE's intervals at the 5% floor. K2-18b's single miss *is* the radius (NS 0.229 outside MIRAGE's [0.2315, 0.2337]) — internally consistent, no error there. **But no committed script computes them**: `benchmark_table.py` covers only the WASP-39b arms against the WASP-39b anchor, and `fig_multitarget.py` computes no coverage at all. The multi-target coverage was produced ad hoc. Given checklist Q4 claims full reproducibility, this needs a committed script before any resubmission.
+
+**Qualifies P5-D5.** P5-D5 recorded "the radii matching published values" as the non-circular evidence that survives the circularity finding. **That survives on WASP-96b only — one of three targets, not three.** The radius *fix* (χ² 301 → 1.44 at a fixed floor) remains real and large; the radius *recovery with honest uncertainty* does not generalise across targets.
+
+**Consequence.** The strongest defensible real-data claim is now narrow and specific: on a spectrum reduced end-to-end from raw MAST, the radius is recovered to 0.1% with the literature value inside the 68% interval. The other two targets recover a plausible central value with an overconfident interval that excludes the published radius. Any v2 must either report wider, honest intervals (fix the IS collapse) or stop quoting intervals from low-ESS arms.

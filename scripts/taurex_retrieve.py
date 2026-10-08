@@ -33,8 +33,30 @@ _PLANET = {
 }
 
 
+# P5-D6: observation files share one generic filename across planets. Refuse to fit
+# the wrong planet silently. Stamped files are checked by name; legacy unstamped ones
+# fall back to grid size, which is unique per target (52 / 90 / 150).
+_NBINS_OF_PLANET = {"wasp39": 52, "wasp96": 90, "k218": 150}
+
+
+def _check_planet(d, want, path):
+    got = str(d["planet"]) if "planet" in getattr(d, "files", []) else None
+    if got is not None:
+        if got != want:
+            raise SystemExit(
+                f"[guard] {path} holds planet '{got}' but --planet is '{want}'. Refusing to fit.")
+        return
+    n, exp = len(d["wlen"]), _NBINS_OF_PLANET[want]
+    if n != exp:
+        raise SystemExit(
+            f"[guard] {path} has {n} bins but planet '{want}' expects {exp}. "
+            f"This file is almost certainly another target. Re-run real_ess.py --sample "
+            f"--arm <arm> to stamp it, or pass the right --obs-npz. Refusing to fit.")
+
+
 def main(live, FLOOR=0.01, clouds=False, highres=False, nbins=150, tprofile="isothermal",
-         tag="", tmin=None, tmax=None, so2=False, hifi=False, fitrad=False, planet="wasp39"):
+         tag="", tmin=None, tmax=None, so2=False, hifi=False, fitrad=False, planet="wasp39",
+         obs_npz=None):
     from taurex.data.spectrum.array import ArraySpectrum
     from taurex.optimizer.nestle import NestleOptimizer
     P = _PLANET[planet]
@@ -61,7 +83,9 @@ def main(live, FLOOR=0.01, clouds=False, highres=False, nbins=150, tprofile="iso
             err.append(1.0 / np.sqrt(np.sum(w)))
         wl, depth, err = np.array(wl), np.array(depth), np.array(err)
     else:
-        s = np.load(OUT / "real_ess_samples.npz")
+        obs_path = Path(obs_npz) if obs_npz else OUT / "real_ess_samples.npz"
+        s = np.load(obs_path, allow_pickle=True)
+        _check_planet(s, planet, obs_path)
         cov = s["covered"]
         wl, depth, err = s["wlen"][cov], s["x_obs"][cov], s["sig_obs"][cov]
     o = np.argsort(wl)                                   # ascending for TauREx
@@ -161,5 +185,9 @@ if __name__ == "__main__":
     ap.add_argument("--hifi", action="store_true")       # P3-D10: ExoMolOP R=15000 opacities
     ap.add_argument("--fitrad", action="store_true")     # P3-D11: float planet radius
     ap.add_argument("--planet", default="wasp39", choices=["wasp39", "wasp96", "k218"])
+    ap.add_argument("--obs-npz", default=None,           # P5-D6: explicit observation file
+                    help="observation npz to fit (default: data/real_ess/real_ess_samples.npz). "
+                         "Use real_ess_samples_<arm>.npz, or any synthetic obs file.")
     a = ap.parse_args()
-    main(a.live, a.floor, a.clouds, a.highres, a.nbins, a.tprofile, a.tag, a.tmin, a.tmax, a.so2, a.hifi, a.fitrad, a.planet)
+    main(a.live, a.floor, a.clouds, a.highres, a.nbins, a.tprofile, a.tag, a.tmin, a.tmax, a.so2, a.hifi, a.fitrad, a.planet,
+         a.obs_npz)
