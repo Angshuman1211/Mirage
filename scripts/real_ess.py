@@ -37,6 +37,9 @@ ARMS = {"base": "configs/transformer_abc",
 # per-arm real spectrum (default = WASP-39b); multi-target planets use their own published depths
 SPECTRA = {"k218": "data/jwst_k2_18b_spectrum.csv",
            "wasp96": "data/jwst_wasp96b_spectrum.csv"}
+# P5-D6: every arm writes the SAME generic output filename, so the planet cannot be
+# recovered from the path. Stamp it into the artefact instead. Default = wasp39.
+PLANET_OF_ARM = {"k218": "k218", "wasp96": "wasp96"}
 # which training set's normalisation each arm expects (ext/shape/rad* differ from abc)
 STATS = {"ext": "data/abc_ext/abc_ext_train.hdf",
          "shape": "data/abc_ext/abc_ext_shape_train.hdf",
@@ -100,16 +103,22 @@ def sample(n, arm="base"):
     theta_phys = scaler.inverse_array(theta_scaled.cpu().numpy())
 
     OUT.mkdir(parents=True, exist_ok=True)
-    np.savez(OUT / "real_ess_samples.npz",
-             theta=theta_phys, log_q=log_q.cpu().numpy().reshape(-1),
-             x_obs=x_obs, sig_obs=sig_obs, covered=covered, wlen=wl_s)
-    print(f"[sample] {n} draws from '{arm}' model on real WASP-39b input")
+    planet = PLANET_OF_ARM.get(arm, "wasp39")
+    # P5-D6: write a per-arm copy that is never clobbered, and stamp arm+planet into
+    # both so downstream consumers can refuse to guess which planet they are holding.
+    payload = dict(theta=theta_phys, log_q=log_q.cpu().numpy().reshape(-1),
+                   x_obs=x_obs, sig_obs=sig_obs, covered=covered, wlen=wl_s,
+                   arm=arm, planet=planet)
+    np.savez(OUT / f"real_ess_samples_{arm}.npz", **payload)
+    np.savez(OUT / "real_ess_samples.npz", **payload)      # generic, for existing callers
+    print(f"[sample] {n} draws from '{arm}' model on real {planet} input")
     if arm.startswith("rad") or arm in ("k218", "wasp96"):   # radius-θ arms: [rp_rj, T, 5×logX]
         print(f"  θ means: radius={theta_phys[:,0].mean():.3f}RJ  T={theta_phys[:,1].mean():.0f}K"
               f"  logX={np.round(theta_phys[:,2:].mean(0),2)}   (NS anchor: R=1.23, T=606)")
     else:
         print(f"  θ means: T={theta_phys[:,0].mean():.0f}K  logX={np.round(theta_phys[:,1:].mean(0),2)}")
-    print(f"  covered bins: {covered.sum()}/{len(covered)}   saved → {OUT/'real_ess_samples.npz'}")
+    print(f"  covered bins: {covered.sum()}/{len(covered)}   saved → "
+          f"{OUT/f'real_ess_samples_{arm}.npz'}  (+ generic real_ess_samples.npz)")
 
 
 def compute():
