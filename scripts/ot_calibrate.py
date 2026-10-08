@@ -28,20 +28,44 @@ NAMES = ["radius", "T", "logH2O", "logCO2", "logCH4", "logCO", "logNH3"]
 _ORDER = ["planet_radius", "T", "log_H2O", "log_CO2", "log_CH4", "log_CO", "log_NH3"]
 
 
+# P5-D6: the FMPE source file below shares one generic filename across planets, while
+# the NS target is hardcoded to WASP-39b. Transporting one planet's posterior onto
+# another's anchor is silent and catastrophic, so check before transporting.
+_NBINS_OF_PLANET = {"wasp39": 52, "wasp96": 90, "k218": 150}
+
+
+def _check_planet(d, want, path):
+    got = str(d["planet"]) if "planet" in getattr(d, "files", []) else None
+    if got is not None:
+        if got != want:
+            raise SystemExit(
+                f"[guard] {path} holds planet '{got}' but the OT target is '{want}'. Refusing.")
+        return
+    n, exp = len(d["wlen"]), _NBINS_OF_PLANET[want]
+    if n != exp:
+        raise SystemExit(
+            f"[guard] {path} has {n} bins but planet '{want}' expects {exp}. "
+            f"This is another target's posterior. Re-run real_ess.py --sample --arm <arm> "
+            f"to stamp it, or pass --obs-npz. Refusing to transport.")
+
+
 def _msqrt(S):                                   # symmetric PSD matrix square root
     w, V = np.linalg.eigh(S)
     return (V * np.sqrt(np.clip(w, 0, None))) @ V.T
 
 
-def fit(M=8000, inflate=1.5, seed=0, tag=""):
+def fit(M=8000, inflate=1.5, seed=0, tag="", obs_npz=None, ns_npz=None, planet="wasp39"):
     sfx = f"_{tag}" if tag else ""
     # FMPE proposal moments (raw 20k draws) — the OT SOURCE
-    s = np.load(OUT / "real_ess_samples.npz")
+    obs_path = Path(obs_npz) if obs_npz else OUT / "real_ess_samples.npz"
+    s = np.load(obs_path, allow_pickle=True)
+    _check_planet(s, planet, obs_path)           # P5-D6: must match the NS target below
     thf = s["theta"]
     muf, Sf = thf.mean(0), np.cov(thf.T)
 
     # NS anchor (fitrad) posterior moments — the OT TARGET (well-sampled, robust)
-    d = np.load(OUT / "wasp39b_ns_posterior_fitrad.npz", allow_pickle=True)
+    ns_path = Path(ns_npz) if ns_npz else OUT / "wasp39b_ns_posterior_fitrad.npz"
+    d = np.load(ns_path, allow_pickle=True)
     nsn = list(d["fit_names"]); idx = [nsn.index(o) for o in _ORDER]
     thn = d["samples"][:, idx]; wn = d["weights"] / d["weights"].sum()
     mun = np.sum(wn[:, None] * thn, 0)
@@ -104,6 +128,11 @@ if __name__ == "__main__":
     ap.add_argument("--floor", type=float, default=0.05)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--tag", default="")
+    ap.add_argument("--obs-npz", default=None,           # P5-D6: explicit OT source
+                    help="FMPE posterior npz to transport (default: real_ess_samples.npz)")
+    ap.add_argument("--ns-npz", default=None,            # P5-D6: explicit OT target
+                    help="NS anchor npz to transport onto (default: wasp39b_ns_posterior_fitrad.npz)")
+    ap.add_argument("--planet", default="wasp39", choices=["wasp39", "wasp96", "k218"])
     a = ap.parse_args()
-    if a.fit: fit(a.m, a.inflate, a.seed, a.tag)
+    if a.fit: fit(a.m, a.inflate, a.seed, a.tag, a.obs_npz, a.ns_npz, a.planet)
     elif a.compute: compute(a.floor, a.tag)
