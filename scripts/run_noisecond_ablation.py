@@ -37,6 +37,28 @@ ARMS: dict[str, Path] = {
     "+sigma+cov": Path("configs/noisecond_cov"),
 }
 
+# P5-D10: the published synthetic win (coverage 0.587->0.687) was measured on the
+# 6-param ABC arms, while the real-data transfer test used the 7-param RADIUS arms.
+# That is a cross-family comparison. `--family rad` runs the identical ablation on
+# the same radius models used on real data, making "wins on synthetic, fails on
+# real" apples-to-apples. Default stays `abc` so the published result is unchanged.
+FAMILIES: dict[str, dict] = {
+    "abc": dict(
+        data=Path("data/abc"), test="abc_test.hdf",
+        arms=ARMS,
+        clean_ref=Path("configs/transformer_abc"),
+    ),
+    "rad": dict(
+        data=Path("data/abc_rad"), test="abc_rad_test.hdf",
+        arms={
+            "no-cond":    Path("configs/noisecond_rad_nocond"),
+            "+sigma":     Path("configs/noisecond_rad_sigma"),
+            "+sigma+cov": Path("configs/noisecond_rad_cov"),
+        },
+        clean_ref=None,          # no un-injected reference was trained for this family
+    ),
+}
+
 
 def load_arm(ckpt_dir: Path):
     ckpt = ckpt_dir / "model__best.pt"
@@ -86,10 +108,14 @@ def logdensity_at_truth(model, theta_scaler, ctx_single: dict, theta_true) -> fl
 
 
 def main(n_planets: int = 50, n_samples: int = 1000, test_seed: int = 1234,
-         clean_ref: bool = False, save: str | None = None) -> None:
+         clean_ref: bool = False, save: str | None = None, family: str = "abc") -> None:
+    fam = FAMILIES[family]
+    data_dir, test_file, fam_arms = fam["data"], fam["test"], fam["arms"]
+    print(f"Family '{family}': arms from {', '.join(str(p) for p in fam_arms.values())}")
+    print(f"Test planets: {data_dir / test_file}")
     print("Loading arms (CPU; ODE solver needs float64) ...")
     arms = {}
-    for name, d in ARMS.items():
+    for name, d in fam_arms.items():
         try:
             arms[name] = load_arm(d)
         except FileNotFoundError:
@@ -97,8 +123,10 @@ def main(n_planets: int = 50, n_samples: int = 1000, test_seed: int = 1234,
     # Optional clean Phase-1 reference (configs/transformer_abc, NO injection):
     # the informative-width target the injected arms should sit between.
     clean = None
-    if clean_ref:
-        clean_dir = Path("configs/transformer_abc")
+    if clean_ref and fam["clean_ref"] is None:
+        print(f"  [skip] clean-ref: no un-injected reference exists for family '{family}'")
+    elif clean_ref:
+        clean_dir = fam["clean_ref"]
         try:
             clean = load_arm(clean_dir)
         except FileNotFoundError:
@@ -106,7 +134,7 @@ def main(n_planets: int = 50, n_samples: int = 1000, test_seed: int = 1234,
 
     if not arms and clean is None:
         raise SystemExit("Nothing to evaluate — train an arm or pass --clean-ref.")
-    inject = noise_transform(ARMS["+sigma+cov"], test_seed) if arms else None
+    inject = noise_transform(fam_arms["+sigma+cov"], test_seed) if arms else None
 
     order = (["clean-ref"] if clean else []) + list(arms)
     scalers = {name: arms[name][1] for name in arms}
@@ -117,7 +145,7 @@ def main(n_planets: int = 50, n_samples: int = 1000, test_seed: int = 1234,
     truths: list[np.ndarray] = []
     planet_sigma: list[float] = []   # injected σ per planet, for the stratified view
 
-    with h5py.File(ABC_DIR / "abc_test.hdf") as f:
+    with h5py.File(data_dir / test_file) as f:
         wlen = f["wlen"][0].astype(np.float32)
         n = min(n_planets, len(f["theta"]))
         print(f"Evaluating {n} planets × {n_samples} samples on {len(order)} models "
@@ -202,17 +230,33 @@ def main(n_planets: int = 50, n_samples: int = 1000, test_seed: int = 1234,
             header += f"   {'cov−nocond':>10}"
         print(header)
         print(f"  {'-'*56}")
+        gaps: list[float] = []
         for b, lab in enumerate(("low-σ", "mid-σ", "high-σ")):
             m = binned == b
             if not m.any():
                 continue
             row = f"  {lab:<8} " + " ".join(f"{ld[nm][m].mean():>11.2f}" for nm in arm_names)
             if has_gap:
-                row += f"   {ld['+sigma+cov'][m].mean() - ld['no-cond'][m].mean():>+10.2f}"
+                g = float(ld["+sigma+cov"][m].mean() - ld["no-cond"][m].mean())
+                gaps.append(g)
+                row += f"   {g:>+10.2f}"
             print(f"{row}   (σ∈[{sig[m].min():.3f},{sig[m].max():.3f}])")
         print(f"{'─'*66}")
-        print("  cov−nocond Δlogdens growing with σ ⇒ conditioning helps most where")
-        print("  the correlated noise is worst — the adaptivity story, made explicit.")
+        # P5-D10: this conclusion was previously HARDCODED and printed regardless of
+        # the numbers above it. It happened to hold on the ABC family and is false on
+        # the radius family, where the gap shrinks with sigma. Report the trend.
+        if has_gap and len(gaps) >= 2:
+            trend = gaps[-1] - gaps[0]
+            span = f"({gaps[0]:+.2f} → {gaps[-1]:+.2f})"
+            if trend > 0.05:
+                print(f"  cov−nocond Δlogdens GROWS with σ {span} ⇒ conditioning helps most")
+                print("  where the correlated noise is worst (the adaptivity story).")
+            elif trend < -0.05:
+                print(f"  cov−nocond Δlogdens SHRINKS with σ {span} ⇒ the benefit is largest")
+                print("  at LOW noise and erodes as noise grows — NOT an adaptivity story.")
+            else:
+                print(f"  cov−nocond Δlogdens is flat in σ {span} ⇒ a uniform offset rather")
+                print("  than a noise-adaptive benefit.")
 
     if save:                                   # Phase 4.2: persist arrays for figures
         safe = {nm: nm.replace("+", "p").replace("-", "_") for nm in samples}
@@ -226,6 +270,9 @@ def main(n_planets: int = 50, n_samples: int = 1000, test_seed: int = 1234,
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
+    p.add_argument("--family", choices=list(FAMILIES), default="abc",
+                   help="abc = published 6-param arms; rad = the 7-param radius "
+                        "arms actually used on real data (matched comparison)")
     p.add_argument("--n-planets", type=int, default=50)
     p.add_argument("--n-samples", type=int, default=1000)
     p.add_argument("--test-seed", type=int, default=1234)
@@ -234,4 +281,5 @@ if __name__ == "__main__":
     p.add_argument("--save", type=str, default=None, help="npz path to persist arrays for figures")
     args = p.parse_args()
     main(n_planets=args.n_planets, n_samples=args.n_samples,
-         test_seed=args.test_seed, clean_ref=args.clean_ref, save=args.save)
+         test_seed=args.test_seed, clean_ref=args.clean_ref, save=args.save,
+         family=args.family)

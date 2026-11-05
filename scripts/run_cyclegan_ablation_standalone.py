@@ -47,12 +47,23 @@ N_BINS     = 52
 
 # ── Data loading ──────────────────────────────────────────────────────────
 
-def load_abc(n: int) -> np.ndarray:
+def load_abc(n: int, cols: np.ndarray | None = None) -> tuple[np.ndarray, np.ndarray]:
+    """(flux, wlen) in the hdf's stored bin order, optionally sliced to `cols`.
+
+    Returning wlen matters: the domain-randomisation baseline builds its
+    covariance from |lambda_i - lambda_j|, and the ABC grid is strongly
+    non-uniform (0.04 to 0.46 um spacing), so a linspace stand-in gives the
+    kernel the wrong distances everywhere.
+    """
     with h5py.File(ABC_TEST) as f:
         flux = f["flux"][:n].astype(np.float32)
+        wlen = f["wlen"][0].astype(np.float64)
         if "flux_mean" in f and "flux_std" in f:
             flux = (flux - f["flux_mean"][:]) / f["flux_std"][:]
-    return flux
+    if cols is not None:
+        cols = np.asarray(cols, dtype=int)
+        flux, wlen = flux[:, cols], wlen[cols]
+    return flux, wlen
 
 
 def load_real(n_bins: int = N_BINS) -> np.ndarray:
@@ -76,8 +87,31 @@ def load_real(n_bins: int = N_BINS) -> np.ndarray:
     return binned
 
 
-def load_cyclegan() -> CycleGAN:
-    ckpt = torch.load(CKPT, map_location="cpu", weights_only=False)
+def load_real_domain(path: Path) -> tuple[np.ndarray, np.ndarray]:
+    """Genuine real DISTRIBUTION from build_real_domain.py (P5-D11).
+
+    Replaces load_real(), which returned ONE vector that main() then tiled, so the
+    "real distribution" was a point mass with zero variance -- MMD measured distance
+    to a point and the correlation metric returned NaN. It also read continuum-
+    normalised STELLAR FLUX while the sim side is TRANSIT DEPTH, and sat on the
+    ascending grid while the sim side is in stored (descending) order. Here every
+    row is a real reduced depth spectrum carrying a real per-frame noise
+    realisation, in stored order, gap-filled at build time.
+    """
+    d = np.load(path, allow_pickle=True)
+    if "abc_cols" not in d:
+        raise SystemExit(
+            f"[guard] {path.name} carries no `abc_cols`, so its bins cannot be "
+            f"matched to ABC wavelengths. Rebuild it with build_real_domain.py.")
+    x = d["samples"].astype(np.float64)
+    if not np.isfinite(x).all():
+        raise SystemExit(f"[guard] {path.name} holds non-finite values; rebuild it")
+    x = (x - x.mean(axis=0)) / (x.std(axis=0) + 1e-8)   # same scaling as sim_norm
+    return x.astype(np.float32), np.asarray(d["abc_cols"], dtype=int)
+
+
+def load_cyclegan(ckpt_path: Path = None) -> CycleGAN:
+    ckpt = torch.load(ckpt_path or CKPT, map_location="cpu", weights_only=False)
     cfg  = ckpt["config"]
     model = CycleGAN(n_bins=cfg["n_bins"], n_res=cfg["n_res"],
                      ngf=cfg["ngf"], ndf=cfg["ndf"])
@@ -142,20 +176,40 @@ def kl_divergence_marginals(P: np.ndarray, Q: np.ndarray, bins: int = 50) -> flo
 
 # ── Domain randomisation simulation ──────────────────────────────────────
 
-def apply_domain_randomisation(flux: np.ndarray, seed: int = 42) -> np.ndarray:
+def apply_domain_randomisation(flux: np.ndarray, wlen: np.ndarray,
+                               seed: int = 42) -> np.ndarray:
     """
     Simulate Phase 2 domain randomisation (correlated noise injection).
     This is the standalone proxy for the noisecond_cov arm.
+
+    Two defects fixed here (P5-D11), both of which made this baseline's noise
+    SMOOTHER and longer-correlated than what the model was actually trained
+    with, in a comparison that is specifically about matching real short-range
+    correlated noise:
+
+      - `wlen` was np.linspace(0.55, 7.30, n), but the ABC grid is strongly
+        non-uniform, so every |lambda_i - lambda_j| in the kernel was wrong. It
+        is now passed in from the hdf, sliced to the same bins as the data.
+      - the correlation-length ranges were the CorrelatedNoiseGenerator class
+        defaults (se 0.10-1.00, ou 0.50-3.00) rather than the trained config's
+        (se 0.02-1.00, ou 0.05-3.00). P3-D1 extended those bounds DOWN on
+        purpose, because real JWST correlation is short-range.
+
+    Ranges below track configs/noisecond_cov/config.yaml. Changing them there
+    without changing them here is how the two drifted apart in the first place.
     """
     rng = np.random.default_rng(seed)
     result = flux.copy()
-    wlen = np.linspace(0.55, 7.30, flux.shape[1])
+    wlen = np.asarray(wlen, dtype=np.float64)
+    if wlen.shape[0] != flux.shape[1]:
+        raise SystemExit(f"[guard] wlen has {wlen.shape[0]} bins, flux has "
+                         f"{flux.shape[1]} — the kernel distances would be wrong")
 
     for i in range(len(flux)):
         sigma = rng.uniform(0.05, 0.30)
         rho   = rng.uniform(0.30, 0.80)
-        se_l  = rng.uniform(0.10, 1.00)
-        ou_l  = rng.uniform(0.50, 3.00)
+        se_l  = rng.uniform(0.02, 1.00)
+        ou_l  = rng.uniform(0.05, 3.00)
 
         d = np.abs(wlen[:, None] - wlen[None, :])
         var = sigma ** 2
@@ -176,35 +230,52 @@ def apply_domain_randomisation(flux: np.ndarray, seed: int = 42) -> np.ndarray:
 
 # ── Main ──────────────────────────────────────────────────────────────────
 
-def main(n_samples: int = 500) -> None:
+def main(n_samples: int = 500, real_domain: str | None = None,
+         ckpt: str | None = None, out: str | None = None) -> None:
+    ckpt_path = Path(ckpt) if ckpt else CKPT
     print(f"\n{'='*72}")
     print("  Phase 3 Track 2 — CycleGAN Ablation (standalone)")
     print(f"{'='*72}")
 
     # Verify files
-    for p, name in [(ABC_TEST, "abc_test.hdf"), (REAL_CSV, "WASP39b CSV"), (CKPT, "cyclegan_best.pt")]:
+    _real_src = Path(real_domain) if real_domain else REAL_CSV
+    for p, name in [(ABC_TEST, "abc_test.hdf"), (_real_src, "real domain"), (ckpt_path, "cyclegan ckpt")]:
         status = "✓" if p.exists() else "✗ MISSING"
         print(f"  {status}  {name}")
-    if not all(p.exists() for p in [ABC_TEST, REAL_CSV, CKPT]):
+    if not all(p.exists() for p in [ABC_TEST, _real_src, ckpt_path]):
         raise SystemExit("Missing required files.")
 
     print(f"\n  Loading data ({n_samples} ABC samples) ...")
-    sim_raw   = load_abc(n_samples)
-    real_ref  = load_real()
+    if real_domain:                      # a genuine distribution, never tiled
+        real_rep, abc_cols = load_real_domain(Path(real_domain))
+        sim_raw, wlen = load_abc(n_samples, cols=abc_cols)
+        if real_rep.shape[1] != sim_raw.shape[1]:
+            raise SystemExit(f"[guard] real domain has {real_rep.shape[1]} bins, "
+                             f"sliced ABC has {sim_raw.shape[1]}")
+        if len(real_rep) > n_samples:
+            real_rep = real_rep[np.random.default_rng(0).choice(
+                len(real_rep), n_samples, replace=False)]
+        print(f"  grid: {sim_raw.shape[1]} ABC bins, "
+              f"{wlen.min():.2f}-{wlen.max():.2f} µm (stored order)")
+    else:
+        sim_raw, wlen = load_abc(n_samples)
+        real_rep = np.tile(load_real(), (len(sim_raw), 1))   # legacy point mass
 
     # Normalise ABC to same scale as real
     sim_norm = (sim_raw - sim_raw.mean(axis=0)) / (sim_raw.std(axis=0) + 1e-8)
-    real_rep = np.tile(real_ref, (len(sim_norm), 1))  # replicate for comparison
 
     print("  Loading CycleGAN model ...")
-    model = load_cyclegan()
+    model = load_cyclegan(ckpt_path)
+    if model.G_AB.n_bins != sim_norm.shape[1]:
+        raise SystemExit(f"[guard] checkpoint was trained on {model.G_AB.n_bins} "
+                         f"bins, this data has {sim_norm.shape[1]}")
 
     print("  Running translations ...")
     with torch.no_grad():
         sim_t  = torch.from_numpy(sim_norm.astype(np.float32))
         trans  = model.G_AB(sim_t).numpy()   # CycleGAN translated
 
-    domain_rand = apply_domain_randomisation(sim_norm, seed=42)
+    domain_rand = apply_domain_randomisation(sim_norm, wlen, seed=42)
 
     print("\n  Computing metrics ...\n")
 
@@ -245,7 +316,7 @@ def main(n_samples: int = 500) -> None:
     # ── Print results table ───────────────────────────────────────────────
     print(f"  {'─'*70}")
     print(f"  Phase 3 Track 2 — CycleGAN vs Domain Randomisation")
-    print(f"  (n={n_samples} ABC test spectra, real = WASP-39b PRISM collapsed spectrum)")
+    print(f"  (n={n_samples} ABC test spectra, real = see real-domain source below)")
     print(f"  {'─'*70}")
     print(f"  {'condition':<22} {'MMD↓':>8} {'KL↓':>8} {'shift↓':>8} {'corr↑':>8}")
     print(f"  {'─'*70}")
@@ -280,16 +351,32 @@ def main(n_samples: int = 500) -> None:
 
     print(f"\n  {'─'*70}")
     print(f"  D4 Conclusion:")
-    if abs(delta_mmd) < 0.005 and abs(delta_kl) < 0.005:
+    # P5-D11: the previous rule was `delta_mmd > 0.005 OR delta_kl > 0.005`, which is
+    # magnitude-blind and fires on whichever metric crosses an ABSOLUTE threshold. With
+    # MMD ~0.3 and KL ~3.7 those thresholds mean completely different things, so a 0.15%
+    # KL difference could override a 93% MMD difference pointing the other way. Compare
+    # each delta RELATIVE to its own scale and require the two metrics to agree.
+    rel_mmd = delta_mmd / max((mmd_dr_real + mmd_trans_real) / 2, 1e-12)
+    rel_kl  = delta_kl  / max((kl_dr_real + kl_trans_real) / 2, 1e-12)
+    TOL = 0.02                                  # 2% of the metric's own scale
+    print(f"  relative: MMD {rel_mmd:+.3f}  KL {rel_kl:+.3f}  (tolerance ±{TOL:.2f})")
+    if abs(rel_mmd) < TOL and abs(rel_kl) < TOL:
         print(f"  ✓ domain_random ≈ cyclegan_trans — D4 VALIDATED")
         print(f"    Structured randomisation is sufficient; CycleGAN adds no value.")
         conclusion = "D4_VALIDATED"
-    elif delta_mmd > 0.005 or delta_kl > 0.005:
-        print(f"  ⚠ CycleGAN brings sim closer to real — consider using translation")
+    elif rel_mmd > TOL and rel_kl > TOL:
+        print(f"  ⚠ CycleGAN closer to real on BOTH metrics — consider translation")
         conclusion = "CYCLEGAN_BENEFICIAL"
-    else:
-        print(f"  ✓ domain_random ≥ cyclegan_trans — domain randomisation preferred")
+    elif rel_mmd < -TOL and rel_kl < -TOL:
+        print(f"  ✓ domain randomisation closer on BOTH metrics — preferred")
         conclusion = "RANDOMISATION_PREFERRED"
+    else:
+        dom, dom_rel = ("MMD", rel_mmd) if abs(rel_mmd) >= abs(rel_kl) else ("KL", rel_kl)
+        side = "CycleGAN" if dom_rel > 0 else "domain randomisation"
+        print(f"  ! metrics DISAGREE — {dom} dominates by {abs(dom_rel)/max(abs(rel_kl if dom=='MMD' else rel_mmd),1e-12):.0f}x "
+              f"and favours {side}")
+        conclusion = ("CYCLEGAN_BENEFICIAL_MIXED" if dom_rel > 0
+                      else "RANDOMISATION_PREFERRED_MIXED")
     print(f"  {'─'*70}\n")
 
     # ── Save results ──────────────────────────────────────────────────────
@@ -317,7 +404,7 @@ def main(n_samples: int = 500) -> None:
         "conclusion": conclusion
     }
 
-    out_path = Path("configs/cyclegan/ablation_results.json")
+    out_path = Path(out) if out else Path("configs/cyclegan/ablation_results.json")
     with open(out_path, "w") as fh:
         json.dump(results, fh, indent=2)
     print(f"  Results saved to {out_path}")
@@ -326,5 +413,10 @@ def main(n_samples: int = 500) -> None:
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
     p.add_argument("--n-samples", type=int, default=500)
+    p.add_argument("--real-domain", type=str, default=None,
+                   help="npz from build_real_domain.py (genuine real distribution)")
+    p.add_argument("--ckpt", type=str, default=None)
+    p.add_argument("--out", type=str, default=None)
     args = p.parse_args()
-    main(n_samples=args.n_samples)
+    main(n_samples=args.n_samples, real_domain=args.real_domain,
+         ckpt=args.ckpt, out=args.out)
