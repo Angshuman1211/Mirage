@@ -2,28 +2,34 @@
   "n_samples": 500,
   "conditions": {
     "sim_baseline": {
-      "mmd_to_real": 0.0234,
-      "kl_to_real": 0.0456,
-      "mean_shift": 0.0123,
-      "corr_similarity": 0.8567
+      "mmd_to_real": 0.2925263047218323,
+      "kl_to_real": 3.942736438406178,
+      "mean_shift": 0.029670197516679764,
+      "corr_similarity": 0.12508122188169957
     },
     "domain_random": {
-      "mmd_to_real": 0.0189,
-      "kl_to_real": 0.0334,
-      "mean_shift": 0.0098,
-      "corr_similarity": 0.8734
+      "mmd_to_real": 0.17043191194534302,
+      "kl_to_real": 3.6747836656219453,
+      "mean_shift": 0.03263092041015625,
+      "corr_similarity": 0.1275017275398651
     },
     "cyclegan_trans": {
-      "mmd_to_real": 0.0191,
-      "kl_to_real": 0.0339,
-      "mean_shift": 0.0102,
-      "corr_similarity": 0.8712,
-      "cycle_consistency_error": 0.0234
+      "mmd_to_real": 0.7685500979423523,
+      "kl_to_real": 4.171813762951109,
+      "mean_shift": 0.307718425989151,
+      "corr_similarity": 0.2759577906204562,
+      "cycle_consistency_error": 0.5745809674263
     }
   },
   "deltas": {
-    "mmd_dr_minus_cg": -0.0002,
-    "kl_dr_minus_cg": -0.0005
+    "mmd_dr_minus_cg": -0.5981181859970093,
+    "kl_dr_minus_cg": -0.4970300973291635
   },
-  "conclusion": "D4_VALIDATED"
+  "conclusion": "RANDOMISATION_PREFERRED",
+  "provenance": {
+    "supersedes": "a placeholder whose numbers were a counting sequence (0.0123/0.0234/0.0456) asserting D4_VALIDATED; it was never a measurement and was cited nowhere",
+    "run": "configs/cyclegan_t1_wasp39",
+    "real_domain": "data/real_domain/real_domain_wasp39_abc.npz (3241 genuine NIRSpec PRISM out-of-transit frames)",
+    "see": "Documentation/problems_and_decisions.md P5-D11"
+  }
 }
