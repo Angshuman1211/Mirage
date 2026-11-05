@@ -1,0 +1,6 @@
+Superseded. This run paired domain A (ABC flux, hdf STORED order, descending
+wavelength) with domain B (real OOT frames left on the ASCENDING grid), so the
+two domains ran in opposite wavelength directions. Its domain-randomisation
+baseline also built its covariance on a linspace grid rather than the true
+non-uniform ABC grid, with the class-default correlation lengths instead of the
+trained config's. Replaced by configs/cyclegan_t1_wasp39/. See P5-D11.

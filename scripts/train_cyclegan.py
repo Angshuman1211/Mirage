@@ -58,13 +58,18 @@ BETAS      = (0.5, 0.999)
 
 # ── Data loading ───────────────────────────────────────────────────────────
 
-def load_abc_spectra(n_samples: int | None = None) -> torch.Tensor:
+def load_abc_spectra(n_samples: int | None = None,
+                     cols: np.ndarray | None = None) -> torch.Tensor:
     """
     Load simulated spectra for domain A.
     Primary: normalised ABC training spectra from abc_train.hdf.
     Fallback: use WASP39b_standardized_full.csv (per-integration spectra)
               as a proxy for domain A when ABC HDF5 is not available locally.
-    Returns: (N, N_BINS) float32 tensor in [-1, 1] for CycleGAN.
+    Returns: (N, n_bins) float32 tensor in [-1, 1] for CycleGAN.
+
+    `cols` selects a subset of the 52 ABC bins, so domain A sits on exactly the
+    wavelengths domain B covers. Slicing happens BEFORE the percentile rescale,
+    so the scaling is set by the bins actually used.
     """
     path = ABC_DIR / "abc_train.hdf"
     if path.exists():
@@ -120,6 +125,9 @@ def load_abc_spectra(n_samples: int | None = None) -> torch.Tensor:
             noise = rng.standard_normal((2000, N_BINS)) * single.std() * 0.02
             flux = (single[None, :] + noise).astype(np.float32)
 
+    if cols is not None:
+        flux = flux[:, np.asarray(cols, dtype=int)]
+
     # Clip extremes and rescale to [-1, 1] for Tanh output
     p1, p99 = np.percentile(flux, [1, 99])
     flux = np.clip(flux, p1, p99)
@@ -130,7 +138,9 @@ def load_abc_spectra(n_samples: int | None = None) -> torch.Tensor:
         idx = rng.choice(len(flux), min(n_samples, len(flux)), replace=False)
         flux = flux[idx]
 
-    return torch.from_numpy(flux)
+    # np.percentile returns float64 scalars, which promote the whole array, and
+    # MPS refuses float64 outright. Cast back explicitly.
+    return torch.from_numpy(flux.astype(np.float32))
 
 
 def load_real_spectra(n_bins: int = N_BINS) -> torch.Tensor:
@@ -191,7 +201,49 @@ def load_real_spectra(n_bins: int = N_BINS) -> torch.Tensor:
     real_samples = np.clip(real_samples, p1, p99)
     real_samples = 2.0 * (real_samples - p1) / (p99 - p1 + 1e-8) - 1.0
 
-    return torch.from_numpy(real_samples)
+    return torch.from_numpy(real_samples.astype(np.float32))
+
+
+def real_domain_meta(path: Path) -> tuple[int, np.ndarray]:
+    """(n_bins, abc_cols) for a real-domain npz, so domain A can be matched to it."""
+    d = np.load(path, allow_pickle=True)
+    if "abc_cols" not in d:
+        raise SystemExit(
+            f"[guard] {path.name} carries no `abc_cols`, so its bins cannot be "
+            f"matched to ABC wavelengths and domain A would be paired with "
+            f"mismatched bins. Rebuild it with build_real_domain.py.")
+    return int(d["samples"].shape[1]), np.asarray(d["abc_cols"], dtype=int)
+
+
+def load_real_domain_npz(path: Path, n_bins: int) -> torch.Tensor:
+    """Domain B from genuinely independent real OOT frames (build_real_domain.py).
+
+    Replaces load_real_spectra, which had three defects (P5-D11):
+      - it bootstrapped ONE spectrum into 500 near-copies with 1% Gaussian jitter,
+        so the discriminator saw essentially a single example;
+      - it read `normalized_flux`, i.e. continuum-normalised STELLAR FLUX, while
+        domain A is standardised TRANSIT DEPTH. The two domains were different
+        physical quantities, both squashed to [-1,1];
+      - it left domain B on the ASCENDING wavelength grid while domain A comes
+        from the hdf in STORED (descending) order, so the two domains ran in
+        opposite wavelength directions.
+    Here domain B is the real reduced transit-depth spectrum carrying real
+    per-frame noise, in stored order, already gap-filled at build time.
+    """
+    d = np.load(path, allow_pickle=True)
+    x = d["samples"].astype(np.float32)
+    covered = np.asarray(d["covered"], dtype=bool)
+    if x.shape[1] != n_bins:
+        raise SystemExit(f"[guard] {path.name} has {x.shape[1]} bins, model needs {n_bins}")
+    if not np.isfinite(x).all():
+        raise SystemExit(f"[guard] {path.name} holds non-finite values; rebuild it")
+
+    p1, p99 = np.percentile(x, [1, 99])          # same final scaling as both loaders
+    x = np.clip(x, p1, p99)
+    x = 2.0 * (x - p1) / (p99 - p1 + 1e-8) - 1.0
+    print(f"  [domain B] {path.name}: {x.shape[0]} real frames, "
+          f"{int(covered.sum())}/{len(covered)} bins carry real measurements")
+    return torch.from_numpy(x.astype(np.float32))
 
 
 # ── Training loop ──────────────────────────────────────────────────────────
@@ -208,10 +260,19 @@ def train(
     lambda_id: float = 5.0,
     save_every: int = 10,
     device_str: str = "cpu",
+    real_domain: str | None = None,
+    ckpt_dir: str | None = None,
 ) -> None:
 
+    global CKPT_DIR                      # P5-D11: never clobber a previous run
+    if ckpt_dir:
+        CKPT_DIR = Path(ckpt_dir)
     CKPT_DIR.mkdir(parents=True, exist_ok=True)
     device = torch.device(device_str)
+
+    # Domain B sets the grid; domain A is sliced to match it bin for bin.
+    n_bins, abc_cols = (real_domain_meta(Path(real_domain)) if real_domain
+                        else (N_BINS, None))
     print(f"\n{'='*70}")
     print("  MIRAGE Phase 3 Track 2 — CycleGAN Training")
     print(f"{'='*70}")
@@ -219,12 +280,15 @@ def train(
     print(f"  Epochs:     {epochs}")
     print(f"  Batch size: {batch_size}")
     print(f"  λ_cyc:      {lambda_cyc},  λ_id: {lambda_id}")
+    print(f"  Bins:       {n_bins}" + ("" if abc_cols is None else
+          f" (ABC cols {abc_cols.min()}-{abc_cols.max()} of {N_BINS})"))
     print(f"  Checkpoint: {CKPT_DIR}")
 
     # Load data
     print("\n  Loading data ...")
-    sim_data  = load_abc_spectra(n_samples=n_abc).to(device)
-    real_data = load_real_spectra(n_bins=N_BINS).to(device)
+    sim_data  = load_abc_spectra(n_samples=n_abc, cols=abc_cols).to(device)
+    real_data = (load_real_domain_npz(Path(real_domain), n_bins) if real_domain
+                 else load_real_spectra(n_bins=n_bins)).to(device)
     print(f"  ABC simulated spectra:  {sim_data.shape}")
     print(f"  Real JWST spectra:      {real_data.shape}")
 
@@ -235,7 +299,7 @@ def train(
 
     # Build model
     model = CycleGAN(
-        n_bins=N_BINS, n_res=n_res, ngf=ngf, ndf=ndf,
+        n_bins=n_bins, n_res=n_res, ngf=ngf, ndf=ndf,
         lambda_cyc=lambda_cyc, lambda_id=lambda_id,
     ).to(device)
 
@@ -262,10 +326,12 @@ def train(
     # Save config
     config = {
         "epochs": epochs, "batch_size": batch_size, "lr": lr,
-        "n_bins": N_BINS, "n_res": n_res, "ngf": ngf, "ndf": ndf,
+        "n_bins": n_bins, "n_res": n_res, "ngf": ngf, "ndf": ndf,
         "lambda_cyc": lambda_cyc, "lambda_id": lambda_id,
         "n_abc_samples": int(sim_data.shape[0]),
         "n_real_samples": int(real_data.shape[0]),
+        "real_domain": real_domain,
+        "abc_cols": None if abc_cols is None else abc_cols.tolist(),
         "device": device_str,
     }
     with open(CKPT_DIR / "config.json", "w") as fh:
@@ -381,6 +447,12 @@ if __name__ == "__main__":
     p.add_argument("--lambda-cyc",  type=float, default=10.0)
     p.add_argument("--lambda-id",   type=float, default=5.0)
     p.add_argument("--save-every",  type=int,   default=10)
+    p.add_argument("--ckpt-dir",    type=str,   default=None,
+                   help="output dir for this run (default configs/cyclegan). "
+                        "Use a fresh dir so an earlier model is never overwritten.")
+    p.add_argument("--real-domain", type=str,   default=None,
+                   help="npz from build_real_domain.py; real OOT-noise domain B "
+                        "(omit to use the legacy bootstrap loader)")
     p.add_argument("--device",      type=str,   default="cpu",
                    choices=["cpu", "cuda", "mps"])
     args = p.parse_args()
@@ -397,4 +469,6 @@ if __name__ == "__main__":
         lambda_id=args.lambda_id,
         save_every=args.save_every,
         device_str=args.device,
+        real_domain=args.real_domain,
+        ckpt_dir=args.ckpt_dir,
     )

@@ -483,3 +483,155 @@ The `--obs-npz` flag is needed regardless — the synthetic known-truth experime
 **Qualifies P5-D5.** P5-D5 recorded "the radii matching published values" as the non-circular evidence that survives the circularity finding. **That survives on WASP-96b only — one of three targets, not three.** The radius *fix* (χ² 301 → 1.44 at a fixed floor) remains real and large; the radius *recovery with honest uncertainty* does not generalise across targets.
 
 **Consequence.** The strongest defensible real-data claim is now narrow and specific: on a spectrum reduced end-to-end from raw MAST, the radius is recovered to 0.1% with the literature value inside the 68% interval. The other two targets recover a plausible central value with an overconfident interval that excludes the published radius. Any v2 must either report wider, honest intervals (fix the IS collapse) or stop quoting intervals from low-ESS arms.
+
+---
+
+### P5-D8 — Table 2 is now reproducible, and reproducing it exposed three undisclosed dependencies [Phase 5, 2026-10-24, v2 build #1]
+
+**Built** `scripts/multitarget_table.py` — regenerates every Table 2 number (radius interval, coverage-vs-NS, best-fit chi2/N, ESS) for all three targets from the saved posteriors, at a stated error floor, with ESS printed on every row. Closes the gap found in P5-D7: nothing in the repo computed these numbers, while checklist Q4 claimed full reproducibility. `benchmark_table.py` covers only the WASP-39b arms; `fig_multitarget.py` computes no coverage at all.
+
+**Coverage vs NS, recomputed:**
+
+| row | floor 5% | floor 1% | paper |
+|---|---|---|---|
+| WASP-39b `abl_rad_nocond` (the figure's arm) | 3/7 | 0/7 | 7/7 |
+| WASP-39b `ot_cal` | 7/7 | 5/7 | 7/7 |
+| WASP-96b | 7/7 | 5/7 | 7/7 |
+| K2-18b | 6/7 | 0/7 | 6/7 |
+
+**1. Table 2 reproduces only at the 5% floor, which the paper never states.** At the 1% floor used by every NS anchor, by Table 1, and by the 301 baseline, coverage collapses to 0/7 · 5/7 · 0/7. Every coverage number in the paper is silently floor-conditional (compounds P5-D4).
+
+**2. The WASP-39b row mixes arms.** Its radius is arm-insensitive — the IS-weighted mean at the 5% floor is 1.2266 (nocond) and 1.2273 (ot_cal), both rounding to the published 1.227 — so Figure 2 and Table 2 agree there. But the published **7/7 is only obtainable from `ot_cal`**, the circular arm, while `fig_multitarget.py` plots `abl_rad_nocond`, which gives 3/7 at the same floor. One table row, two arms.
+
+**3. ESS is below 20 on seven of eight rows** (range 1.00–12.4); only `ot_cal` at the 1% floor clears it at 42.5. The script now prints an explicit warning per row rather than letting a point-mass posterior pass as a credible interval.
+
+**Unchanged from P5-D7:** the literature radius falls inside the 68% interval for **WASP-96b only**, at both floors.
+
+**Decision.** Any v2 table states its error floor in the caption, names the arm per row, and prints ESS beside every interval. Rows whose ESS is below ~20 either get a wider honest interval or get no interval at all.
+
+---
+
+### P5-D9 — Figure 2 misrepresented the fits; rebuilt with an honest error budget [Phase 5, 2026-10-24, v2 build #2]
+
+**Trigger.** Reviewer Viae: *"all inferred spectra look really bad fits, several features are completely off."* P5-D7 showed the fits are good (chi2/N 0.66-1.44, zero bins past 3 sigma on any target), so the objection had to come from the figure rather than the science.
+
+**Cause, confirmed.** `fig_multitarget.py:62` draws data error bars at the RAW measurement sigma, while `is_weights()` evaluates the likelihood against `sqrt(sig^2 + (floor*depth)^2)`. Measured ratio of plotted to effective uncertainty:
+
+| target | median raw sigma | median sigma_eff (5% floor) | ratio |
+|---|---|---|---|
+| WASP-39b | 2.855e-05 | 1.064e-03 | **37.5x** |
+| WASP-96b | 1.302e-04 | 7.246e-04 | 5.5x |
+| K2-18b | 4.949e-05 | 1.556e-04 | 3.2x |
+
+The forward-model systematic dominates **100% of bins on all three targets**. A residual the likelihood treats as 1 sigma therefore appeared as ~37 on the page for WASP-39b. The reviewer read the figure correctly; the figure was wrong.
+
+**Rebuilt as `scripts/fig_multitarget_v2.py`** (v1 left intact for comparison):
+1. Data keep their raw measurement sigma, which is the honest measurement precision. The forward-model systematic moves to the MODEL band, where it belongs (P3-D3 validated TauREx to ~5% median, so the prediction is genuinely no better than that).
+2. The band is a full posterior-predictive — parameter spread + forward-model systematic + measurement noise in quadrature — so "fraction of points inside" is directly comparable to 68 / 95%. An earlier version omitted the measurement term and under-covered badly on K2-18b (29.5% inside 1 sigma); including it fixed that.
+3. **1 sigma AND 2 sigma bands.** A 68% band excludes ~1/3 of points by construction, which reads as failure even on a good fit — the same misreading as v1, one level up.
+4. New **residual row in units of sigma_eff**, with 1/2/3 sigma guides and the count past 3 sigma printed per panel. Fit quality is now readable instead of inferred.
+5. **ESS annotated per target in red when below 20**, so a weight-collapsed posterior is visible on the page rather than presented as a credible interval (P5-D7).
+6. Fonts enlarged, dpi 170 -> 200, one shared legend on row 1 instead of three overlapping the data (addresses T46u's "unreadable at print size").
+
+**Posterior-predictive containment after the fix** (nominal 68 / 95%): WASP-39b 55.3 / 89.4 · WASP-96b 76.7 / 97.8 · K2-18b 59.1 / 95.3. Bracketing nominal, so the bands now mean what they say. WASP-39b is mildly overconfident and WASP-96b mildly conservative, which is itself a reportable diagnostic.
+
+**Standing rule.** Any figure comparing data to a model plots the error budget the likelihood actually used, or states plainly which component is missing. v1 violated this and cost a reviewer's confidence in results that were fine.
+
+---
+
+### P5-D10 — Matched-family ablation: the conditioning win replicates, and a second transfer failure appears [Phase 5, 2026-10-24]
+
+The published synthetic win was measured on the **6-param ABC** arms while the real-data test used the **7-param radius** arms, so "wins on synthetic, fails on real" was a cross-family comparison. Added `--family {abc,rad}` to `run_noisecond_ablation.py` (default `abc`, published result untouched) and re-ran identically on the radius arms: 50 planets x 1000 samples, same seed.
+
+Coverage@68 vs known truth (nominal 0.68), beside real JS-to-NS:
+
+| arm | ABC | radius | real JS |
+|---|---|---|---|
+| no-cond | 0.587 (err .093) | 0.817 (err .137) | 0.352 |
+| +sigma | 0.687 (err .007) | 0.903 (err **.223**) | 0.371 |
+| +sigma+cov | 0.687 (err .007) | 0.700 (err **.020**) | 0.428 |
+
+1. **The covariance win replicates, and is stronger than claimed.** ABC under-covers and is raised to nominal; the radius family over-covers and is lowered to nominal. The claim is not "raises coverage" but **"calibrates, from either direction"** (err .093->.007 and .137->.020). The transfer comparison is now apples-to-apples.
+2. **NEW: +sigma-only does not replicate.** Indistinguishable from +cov on ABC (.687 vs .687), but **worse than no conditioning** on the radius family (err .223 vs .137). A second transfer failure, benchmark-to-benchmark, not previously reported.
+
+**Three code defects fixed alongside:**
+- The per-sigma block printed *"Dlogdens growing with sigma => conditioning helps most where noise is worst"* **unconditionally**. Radius gaps are +2.37 / +1.13 / +0.85 — it shrinks. True on ABC, false here, printed either way. Now branches on the measured trend. This is how a fabricated claim enters a paper.
+- `real_compare.py` loaded the **T-gradient** anchor (`T_surface`, `T_top`, ...) not the free-radius one, indexed it **by position** against a hardcoded 6-param name list (so it compared temperature against `T_surface`), and read the shared `real_ess_samples.npz` (P5-D6). Rewritten to match by name, take explicit `--samples`/`--ns`, and refuse an anchor missing any flow parameter — a mean JS over 5 params is not comparable to one over 7.
+- Built `scripts/transfer_table.py`, the single reproducible artifact for this claim. Both sides **IS-free** (synthetic scores against known truth, real uses raw unweighted samples), so neither is touched by the P5-D7 weight collapse. The IS-based real coverage (3/0/3) is retired.
+
+**TMLR thesis, from the evidence:** robustness techniques validated on synthetic misspecification benchmarks fail to transfer twice over — covariance conditioning calibrates across two synthetic families yet makes the real posterior agree *less* with an independent NS reference (0.352 -> 0.428), and sigma-only conditioning fails to replicate even on a second synthetic family.
+
+---
+
+### P5-D11 — The CycleGAN ablation (D4) was invalid five ways; rebuilt on real OOT frames [Phase 5, 2026-11-01]
+
+Reviewer Viae objected that domain B was one bootstrapped spectrum. Checking that turned up four further defects, three of them in the **domain-randomisation baseline that won**, so the published D4 comparison measured almost nothing it claimed to.
+
+**What was wrong.**
+1. **Domain B was a point mass.** `load_real_spectra` took ONE reduced spectrum and bootstrapped it to 500 near-copies with 1% Gaussian jitter; the ablation then called `np.tile(real_ref, (n, 1))`, giving literally zero variance. MMD measured distance to a point and `corr_similarity` returned NaN — which was in the published JSON and went unnoticed.
+2. **The two domains were different physical quantities.** Domain B read `normalized_flux`, continuum-normalised STELLAR FLUX with median exactly 1.0. Domain A is standardised TRANSIT DEPTH. Both were squashed to [-1,1], which hid it.
+3. **The two domains ran in opposite wavelength directions.** The hdf stores `flux` columns in descending wavelength order and `mirage/datasets/real_jwst.py` maps a real spectrum back to that stored order before building the context. My first rebuild of domain B left it ascending, so bin 0 of A was 7.28um against bin 0 of B at 0.55um. Caught before it reached a published result, but only by reading how the main pipeline does it.
+
+   Worth quantifying, because the obvious test understates it. The mean transit-depth spectrum is nearly flat, so reversing it changes the **signal** by only ~1% (mean |depth - reversed depth| = 2.4e-4 on a depth of 0.021). But the per-bin **noise amplitude**, which is what the discriminator keys on, spans **62.6x** across the 47 covered bins (0.00257 to 0.16109 fractional scatter), and the reversed profile is uncorrelated with the true one (r = -0.049). The bug put the loud bins where the quiet bins belong. Verified the fix directly rather than by inspection: `wlen` now equals the hdf's stored grid exactly, and the stored depths match an independent inverse-variance rebin of the raw CSV at 0.95 / 2.01 / 3.51 / 4.91um to 1e-9.
+4. **The randomisation kernel used a grid the data does not live on.** `wlen = np.linspace(0.55, 7.30, 52)`, while the ABC grid spacing runs 0.04 to 0.46um, so every `|lambda_i - lambda_j|` entering the SE and OU kernels was wrong.
+5. **The randomisation correlation lengths were the class defaults, not the trained config's** (se 0.10-1.00 vs **0.02**-1.00, ou 0.50-3.00 vs **0.05**-3.00). P3-D1 had extended those bounds down on purpose because real JWST correlation is short-range. Defects 4 and 5 both made the baseline's noise smoother and longer-correlated than what was trained, in a comparison specifically about matching real short-range correlated noise.
+
+Plus a conclusion rule that fired on whichever metric crossed an **absolute** 0.005 threshold. With MMD ~0.3 and KL ~3.7 those mean different things, so a 0.2% KL difference could outvote a 93% MMD difference pointing the other way. Now each delta is compared relative to its own scale with the two metrics required to agree.
+
+**The rebuild.** `scripts/build_real_domain.py` constructs domain B from genuine out-of-transit frames, `real_sample = depth * (1 + frame_i/mean(frames) - 1)`, so the signal is the real reduced spectrum and the scatter is a real instrument noise realisation. WASP-39b PRISM alone has 3,241 frames. Uncovered bins are interpolated **per sample** and at build time — a constant fill would hand the discriminator a free real-vs-fake shortcut, and `np.interp` needs increasing `xp` which the stored order violates, so doing it once in the builder removes both traps. Stated caveat, to be printed and not hidden: OOT residuals characterise FLUX noise and stand in here for DEPTH noise.
+
+**Grid choice for the cross-target tier.** Only 26 of the 52 ABC bins fall in the 0.85-2.83um range NIRISS and PRISM share, and they are coarse below 1.9um then dense above. Resampling ABC **up** onto a uniform 52-bin grid would invent 2x resolution and leave domain A nearly linear across the blue half, which a discriminator separates on smoothness alone. The shared grid therefore **restricts** the ABC grid to its 26 native bins and bins the real frames **down** onto them, so nothing is invented on either side. All three targets reach 26/26 covered bins, and each is trained and scored separately — pooling them would let a discriminator win on noise amplitude, which is not the question.
+
+**Cost, and a correction.** My smoke tests overwrote the published `configs/cyclegan/cyclegan_best.pt` (30MB, Aug 14) and truncated its 200-epoch `training_log.csv` (37,759 -> 284 bytes), because `CKPT_DIR` was a module constant. `--ckpt-dir` now makes every run write its own directory.
+
+I recorded this as **unrecoverable, and that was wrong.** Both files were committed in `9a106e2` ("feat(track2-p3): CycleGAN trained 200 epochs, best loss_G=0.69"), so `git status` showed them as `D` rather than modified and `git checkout HEAD --` restored them byte for byte: 30,365,735 and 37,759 bytes, the exact sizes reported lost. Verified by loading the checkpoint, epoch 199, loss_G 0.6898, matching the commit message. The restored `config.json` also confirms the defect independently, `n_real_samples: 500` against `n_abc_samples: 2000`.
+
+**Lesson, and it is the same one as P5-D4.** I concluded "not git-tracked" without running the one command that checks, and then reported a permanent loss to the user. The check costs nothing: `git cat-file -s $(git rev-parse HEAD:<path>)`. A file absent from the working tree is not a file absent from history, and `D` in `git status` is positive evidence that it *is* tracked. Claiming data loss needs the same standard of verification as claiming a result.
+
+`configs/cyclegan/ablation_results_v2.json` held a placeholder whose numbers were a counting sequence (0.0189 / 0.0191) asserting `D4_VALIDATED`. It was never a measurement, and the blast-radius check found it cited nowhere outside this log, so it never reached the paper. Overwritten in place with the genuine tier-1 result plus a `provenance` block recording what it replaced.
+
+**Results, 5 runs on mps** (mps measured ~23x cpu, so all five use it; `run_cyclegan_tiers.sh` pins one device because the numerics differ slightly and these runs are compared against each other).
+
+| run | real frames | MMD sim / rand / GAN | KL sim / rand / GAN | mean shift rand / GAN |
+|---|---|---|---|---|
+| **tier 1** WASP-39b PRISM 52b | 3,241 | 0.2925 / **0.1704** / 0.7686 | 3.943 / **3.675** / 4.172 | 0.033 / **0.308** |
+| control WASP-39b 26b | 3,241 | 0.3626 / **0.2556** / 0.9429 | 5.960 / 5.760 / **5.049** | 0.031 / **0.468** |
+| tier 2 WASP-39b 26b | 56 | 0.3628 / **0.2533** / 0.2748 | 9.442 / 9.184 / **9.030** | — |
+| tier 2 WASP-96b NIRISS 26b | 56 | 0.3637 / 0.2537 / **0.2298** | 2.519 / **2.077** / 3.473 | — |
+| tier 2 K2-18b NIRISS 26b | 56 | 0.3686 / 0.2599 / **0.1488** | 2.591 / **2.242** / 4.570 | — |
+
+1. **Tier 1 is the headline and it is far stronger than the published claim.** Both metrics agree, and against `sim` (no adaptation at all) the translator scores 0.7686 to sim's 0.2925. So translation is **2.6x worse than doing nothing**, while randomisation improves on doing nothing. The paper's "translation did not improve on structured randomization" understates it: translation moves the simulated distribution **away** from the real one.
+
+2. **The tier-2 cross-target flips are a SMALL-SAMPLE ARTIFACT, not a target or instrument effect.** Established by the control, same target and grid with only the frame count changing: as n drops 3,241 -> 56, `sim` moves +0.06% and `random` -0.9%, while the **CycleGAN's MMD collapses 71%** (0.9429 -> 0.2748). Only the arm that is far from the real distribution is sensitive to how few real points it is scored against. Tier 2 cannot be read as evidence about targets, and WASP-96b (56 frames) and K2-18b (96) do not have enough out-of-transit data to support this comparison at all. That is a real limit on the experiment, and the honest response is to say so rather than to bootstrap 500 samples from one spectrum.
+
+3. **The metrics genuinely disagree on the 26-bin subrange, and it is not an estimator artifact.** Swept the histogram KL over bins 10/20/50 and samples 200/500: the absolute value is biased upward at low n (6.83 -> 5.02 at 50 bins) but the ordering is stable at every setting. So on the NIRISS subrange the translator really does get **per-bin marginals** closer while MMD and mean shift still strongly favour randomisation. The most interpretable number is the **mean shift: 0.468 vs 0.031**, a 15x larger systematic offset, in units of per-bin sigma. A translator that displaces the mean spectrum by roughly half a standard deviation is unusable for retrieval whatever its marginals look like, because retrieval reads parameters off the spectrum's level and shape. `corr_similarity` does not separate the arms cleanly (0.276 GAN vs 0.128 rand at 52b, all ~0.09 at 26b) and should not be leaned on.
+
+   Candidate explanation, **not established**: domain A is a distribution over 73k different *planets* while domain B is a distribution over *noise realisations of one planet*, so the translator is being asked to convert a population spread into a single-target noise spread. That would explain marginal-shape agreement alongside a displaced mean. Testing it needs a domain A restricted to one planet's parameter neighbourhood.
+
+**For the paper.** The §4 sentence quoting `MMD ~ 1.22` is from the invalid run and cannot be carried forward, since the corrected number is measured against a different real domain. The real-side description ("the single reduced WASP-39b spectrum, bootstrap-expanded with 1% photon-noise jitter to 500 samples") must change too. To v1's credit that disclosure is exactly what let reviewer Viae find the problem.
+
+---
+
+### P5-D12 — Dropping the collapsed intervals RESTORES the multi-target radius claim [Phase 5, 2026-11-05, result — amends P5-D7]
+
+P5-D7 narrowed the radius-recovery claim from three targets to one, because only WASP-96b's 68% interval contained the literature value. It also identified the cause, importance-weight collapse, but then kept quoting the collapsed intervals. Those two findings were never put together. Doing so reverses the conclusion.
+
+**The fix, implementing P5-D7's own stated resolution.** `multitarget_table.py` now withholds the IS-weighted interval entirely below `--ess-min` (default 20), rather than printing it beside a warning. A printed number gets copied into a paper; the warning does not. In its place it reports the **IS-free** interval, the raw flow posterior at equal weights, which cannot collapse by construction. Same move P5-D10 made for the real-side JS metric.
+
+**Result at a 1% floor.** 3 of 4 arms are collapsed (ESS 1.00, 7.49, 1.31 of 1000 draws) and have their weighted interval withheld.
+
+| target | ESS | IS-weighted 68% | IS-free 68% | x wider | literature | inside IS-free |
+|---|---|---|---|---|---|---|
+| WASP-39b (nocond) | 1.00 | withheld | [1.1417, 1.2841] | 1700 | 1.279 | **yes** |
+| WASP-96b | 7.49 | withheld | [1.1568, 1.2234] | 7.6 | 1.200 | **yes** |
+| K2-18b | 1.31 | withheld | [0.2189, 0.2363] | 633 | 0.2352 | **yes** |
+| WASP-39b (OT-cal) | 42.5 | [1.2263, 1.2345] | [1.2243, 1.2336] | 1.1 | 1.279 | no |
+
+1. **The literature radius lies inside the IS-free interval on all three targets.** P5-D7's "one of three, not three" was an artifact of quoting point masses. The 1700x and 633x widening factors are the measure of how degenerate those intervals were.
+2. **The intervals are not vacuous, which is the check that makes this claim rather than tautology.** Against the uniform prior's own central 68%, the IS-free intervals are **4x tighter (WASP-39b), 8x (WASP-96b) and 12x (K2-18b)**. A wide interval contains more by construction, so containment only means something if the interval still carries information, and it does.
+3. **But it is tight, not comfortable.** The literature value sits at 0.93 (WASP-39b), 0.30 (WASP-96b) and 0.87 (K2-18b) of the interval's half-width from its centre. Two of three are near the edge. The defensible claim is "contained on all three", not "well recovered on all three".
+4. **The OT-calibrated arm is the one that still misses**, at the highest ESS of the four. Consistent with P5-D5: that arm is an inflated Gaussian on the NS anchor, and the NS anchor is not the literature value.
+
+**Amends P5-D7.** The radius *fix* was never in doubt. The radius *recovery with honest uncertainty* does generalise across targets, provided the uncertainty is not taken from a collapsed importance-sampling step. The reporting policy is now enforced in code rather than noted in prose.
+
+**Standing rule.** No interval is quoted from an arm whose ESS the same table does not also print. If ESS is below threshold, there is no interval to quote, only an IS-free substitute that must be labelled as one.
