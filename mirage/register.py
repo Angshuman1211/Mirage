@@ -90,6 +90,7 @@ def register() -> None:
     # 3) Data transforms. stages.py did `from ... import get_data_transforms`,
     #    so rebind the name in the importing module too, not just on _dt.
     from mirage.datasets.transforms import InjectCorrelatedNoise
+    from mirage.datasets.translate import TranslateCycleGAN
 
     _orig_transforms = _dt.get_data_transforms
 
@@ -98,6 +99,8 @@ def register() -> None:
         for cfg in configs:
             if cfg.type == "InjectCorrelatedNoise":
                 out.append(InjectCorrelatedNoise(**cfg.kwargs))
+            elif cfg.type == "TranslateCycleGAN":
+                out.append(TranslateCycleGAN(**cfg.kwargs))
             else:
                 out.extend(_orig_transforms([cfg]))  # AddNoise / Subsample
         return out
