@@ -65,10 +65,23 @@ that a nuisance parameter fixed to the wrong value is a misspecified forward mod
 
 Do not carry this framing into v2 unchanged.
 
-## The framing decision — settle this first
+## The framing decision — SETTLED: option B (2026-11-01)
 
-No code should be written until this is chosen. Each option implies a different venue and a
-different set of experiments.
+**Chosen: B, sim-to-real negative results, TMLR.** Recorded here because this file previously
+read "settle this first" and that blocked nothing by then. The two load-bearing pillars have
+since been built and both survived rebuilding (P5-D10, P5-D11).
+
+Consequences of B, which differ from A and C:
+- The OT circularity is **not** a wound to hide. It becomes part of the rigour narrative, a
+  robustness technique whose validation did not survive scrutiny, reported as such.
+- The radius fix stays as the setup and the real-data anchor, not as the headline contribution.
+- Distributional evidence is not sufficient on its own. B's thesis is about techniques that fail
+  to transfer, so each pillar needs a claim at the level of the *inference*, not only of the
+  noise distribution. This is what the outstanding posterior-level ablation is for.
+- Single-run headline numbers will not pass a venue that evaluates rigour. Seeds and dispersion
+  move from "required if the paper keeps a method claim" to mandatory.
+
+The three options are kept below for the record.
 
 **A. Real-data application and failure characterisation.** Venue: A&A, AJ, MNRAS. Centre the
 three real JWST targets, two instruments, the end-to-end self-reduction from raw MAST, and the
