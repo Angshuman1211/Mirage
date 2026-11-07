@@ -635,3 +635,29 @@ P5-D7 narrowed the radius-recovery claim from three targets to one, because only
 **Amends P5-D7.** The radius *fix* was never in doubt. The radius *recovery with honest uncertainty* does generalise across targets, provided the uncertainty is not taken from a collapsed importance-sampling step. The reporting policy is now enforced in code rather than noted in prose.
 
 **Standing rule.** No interval is quoted from an arm whose ESS the same table does not also print. If ESS is below threshold, there is no interval to quote, only an IS-free substitute that must be labelled as one.
+
+---
+
+### P6-D1 — H9 training done on CUDA; the published no-conditioning baselines were failed MPS runs [Phase 6, 2026-11-06, MAJOR — training only, evaluation pending]
+
+**What ran.** 12 FMPE runs on an RTX 5070 Laptop GPU (CUDA 12.8, torch 2.11): {radius, ABC} × {no-cond, +σ+cov} × seeds {42, 43, 44}, in `configs/h9_{rad,abc}_{cov,nocond}_s{42,43,44}`. Configs are the published `noisecond_*` configs with only `device: cuda`, `n_workers: 0` (the Mac already used 0) and `backup_interval` changed; full 512-epoch budget, early stopping at patience 50. About 27x faster than the Mac per batch. Seed 42 reproduces each stored run's seeds exactly, so it is a CUDA-vs-Mac control.
+
+**Best validation loss (FMPE loss, not the H9 metric).**
+
+| arm | s42 | s43 | s44 | mean ± sd | stored Mac s42 |
+|---|---|---|---|---|---|
+| radius +σ+cov | 1.1209 | 1.1590 | 1.1368 | 1.139 ± 0.019 | 1.1475 (CPU) |
+| radius no-cond | 1.1328 | 1.1265 | 1.1241 | 1.128 ± 0.005 | **1.2477 (MPS)** |
+| ABC +σ+cov | 1.3907 | 1.3851 | 1.3975 | 1.391 ± 0.006 | 1.3893 (CPU) |
+| ABC no-cond | 1.3904 | 1.3913 | 1.3927 | 1.392 ± 0.001 | **1.9231 (MPS)** |
+
+1. **The CPU-trained cov arms reproduce on CUDA.** Radius differs by 0.027, inside its own seed range (1.121 to 1.159); ABC by 0.001. On this evidence the platform is neutral for the covariance branch.
+2. **The MPS-trained no-cond arms do not, because they did not train.** `noisecond_nocond` train loss went 1.99 at epoch 1 to 1.94 at epoch 125: it never learned. The same config and seed on CUDA reaches 1.41. `noisecond_rad_nocond` learned but poorly (1.25 vs 1.13, with a val spike to 1.54 at epoch 75). So the published no-conditioning rows (ABC coverage 0.587, real JS 0.352) were measured on broken baselines, and the conditioning gap may be partly or wholly a training failure rather than an effect of conditioning.
+3. **With the baseline trained properly, the validation-loss gap between arms is gone.** ABC: 1.391 vs 1.392. Radius: no-cond is slightly *better* (1.128 vs 1.139). This does not settle coverage or JS, which need the evaluation pipeline, but it removes any prior that conditioning helps.
+4. **Equal early-stop epochs across arms are expected, not a bug.** Within a seed, both arms draw the same validation noise each epoch; their epoch-to-epoch val-loss changes correlate 0.81 to 0.95, versus 0.03 across seeds. The minimum, and therefore the stop epoch, partly tracks that shared noise.
+
+**Caveat on the dispersion.** `dataset.random_seed` also sets fm4ar's train/valid split, so the spread above is over split + init + noise, wider than training-seed variance alone. Arms are paired within a seed (same split, same noise), so cov-vs-nocond comparisons are sound. If the effect dies, a second pass holding `dataset.random_seed` at 42 is needed to separate the causes.
+
+**Bookkeeping gotcha.** `backup_interval` sets how often `model__latest.pt` is written, and early stopping exits without a final save. `h9_rad_cov_s42` ran at 100, so its `model__latest.pt` is stale at epoch 200 (it stopped ~232; history to epoch 225 is in `history_to_ep225.csv`). Do not resume that directory: it would retrain from 200 and could overwrite `model__best.pt` (epoch 182, the one to evaluate). The other 11 ran at `backup_interval: 1`. Disk use is driven by `snapshots/` (13 MB per LR drop), not by this setting.
+
+**Next.** Re-run coverage@68 and real JS-to-NS on all 12 `model__best.pt`. Until then the "calibrates from either direction" claim should be treated as unsupported, not provisional, and the MPS no-cond numbers should not be quoted.
