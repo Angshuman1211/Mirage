@@ -52,6 +52,18 @@ STATS = {"ext": "data/abc_ext/abc_ext_train.hdf",
 STATS_DEFAULT = "data/abc/abc_test.hdf"
 _COV_ARMS = ("cov", "rad")                            # arms with covariance embedding → need OOT frames
 
+# H9 re-trained radius arms (P6-D1). The published rad arms are not a usable
+# baseline: noisecond_rad_nocond was trained on MPS and under-trained there
+# (best val 1.248 vs 1.128 on CUDA at the same seed and config). These six are
+# the same configs retrained on CUDA, so the real-side JS can be measured
+# against a baseline that actually converged.
+for _s in (42, 43, 44):
+    ARMS[f"h9_rad_nocond_s{_s}"] = f"configs/h9_rad_nocond_s{_s}"
+    ARMS[f"h9_rad_cov_s{_s}"] = f"configs/h9_rad_cov_s{_s}"
+    STATS[f"h9_rad_nocond_s{_s}"] = "data/abc_rad/abc_rad_train.hdf"
+    STATS[f"h9_rad_cov_s{_s}"] = "data/abc_rad/abc_rad_train.hdf"
+_COV_ARMS = _COV_ARMS + tuple(f"h9_rad_cov_s{_s}" for _s in (42, 43, 44))
+
 
 def _real_oot_frames(k=100):
     """Real PRISM OOT frames on the 52-bin grid, model (stored) bin order.
@@ -112,7 +124,7 @@ def sample(n, arm="base"):
     np.savez(OUT / f"real_ess_samples_{arm}.npz", **payload)
     np.savez(OUT / "real_ess_samples.npz", **payload)      # generic, for existing callers
     print(f"[sample] {n} draws from '{arm}' model on real {planet} input")
-    if arm.startswith("rad") or arm in ("k218", "wasp96"):   # radius-θ arms: [rp_rj, T, 5×logX]
+    if theta_phys.shape[1] == 7:   # radius-θ arms: [rp_rj, T, 5×logX]
         print(f"  θ means: radius={theta_phys[:,0].mean():.3f}RJ  T={theta_phys[:,1].mean():.0f}K"
               f"  logX={np.round(theta_phys[:,2:].mean(0),2)}   (NS anchor: R=1.23, T=606)")
     else:

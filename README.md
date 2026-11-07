@@ -119,21 +119,32 @@ against fewer real points, while the other two arms moved under 1%.
 
 ---
 
-## Noise conditioning, an honest bounded result
+## Noise conditioning, corrected
 
-Covariance conditioning is a clean calibration win on the *synthetic* ABC benchmark and does not
-transfer to real instrument noise. Coverage at 68% against known truth, nominal 0.68:
+The published version of this result rested on baselines that never trained. Both no-conditioning
+arms ran on the Mac's MPS backend and failed there. Retrained on CUDA at identical configs and
+seeds, the synthetic win disappears and the real-data failure survives (P6-D1, P6-D2).
+
+Mean ± sd over three training seeds. Coverage at 68% against known truth, nominal 0.68. For the
+real column, lower JS means closer to the independent nested-sampling anchor.
 
 | arm | ABC (6-param) | radius (7-param) | real, JS to NS anchor |
 |---|---|---|---|
-| no conditioning | 0.587 | 0.817 | **0.352** |
-| + σ | 0.687 | 0.903 | 0.371 |
-| + σ + covariance | 0.687 | 0.700 | 0.428 |
+| no conditioning | 0.692 ± 0.013 | 0.692 ± 0.016 | **0.344 ± 0.003** |
+| + σ + covariance | 0.698 ± 0.011 | 0.693 ± 0.014 | 0.426 ± 0.014 |
 
-The claim is **not** "raises coverage" but "calibrates from either direction", since ABC
-under-covers and is raised while the radius family over-covers and is lowered. Two transfer
-failures follow. Conditioning makes the real posterior agree *less* with an independent reference
-(0.352 to 0.428), and σ-only conditioning fails to replicate even on a second synthetic family.
+Every synthetic arm now sits at nominal, and the gaps between them are 0.1x to 0.5x the
+training-seed spread. The earlier claim of "calibrates from either direction" needed a baseline
+miscalibrated in two directions. That was the training failure, not a property of conditioning.
+
+What survives is the transfer failure, and it is firmer than the synthetic result ever was.
+Conditioning moves the real posterior 0.083 nats further from the anchor, which is 8.4x the seed
+spread. The mechanism is a systematic bias rather than a calibration effect, with conditioning
+driving the retrieved temperature to 1620 K against the anchor's 608 K.
+
+**Retracted:** 0.587, 0.817, 0.687 and 0.700. **Withheld:** the +σ row, because
+`noisecond_rad_sigma` is a third failed MPS run (best val 1.3729 where its family trains to 1.13)
+and has not been retrained.
 
 ---
 

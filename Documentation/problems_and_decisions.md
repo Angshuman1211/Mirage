@@ -138,7 +138,7 @@ Validation harness: `scripts/validate_whitening.py` (envelope check across 4 ins
 
 **Refinement outcome (2026-07-23) — real correlation is short-range; kernel extended.** `scripts/measure_corr_length.py` estimated PRISM correlation on a resolution ladder (52 → native 409 bins). The nn-correlation settles at **+0.21 (native) / +0.37 (model-52)** and the 1/e length stays *below one native pixel (<0.004 µm)* at every resolution → real OOT noise is **mostly white with a weak, genuinely short-range correlated component**, NOT the long-range 1/f drift the Phase-2 kernel assumed. The training kernels (se 0.10–1.00 µm) are far too smooth (se=0.10 → nn≈0.97 vs real ≈0.37). **Decision:** extend the D4 kernel's short edge down — `se_length_min 0.10→0.02`, `ou_length_min 0.50→0.05` (maxes kept at 1.00 / 3.00 so long-range structure for other instruments/systematics is still covered) — in all 3 arm configs (`noisecond_{nocond,sigma,cov}`) so injection stays identical, and in `validate_whitening.py`'s envelope sampler. Caveat: the 1/e-length *envelope statistic* on the 52-bin grid can't resolve these short kernels (they read sub-resolution there too), so it barely moved — the measurement ladder, not the 52-bin 1/e stat, is the authoritative characterization. Net: whitening (scale) + extended short-length kernel (structure) together put the real WASP-39b noise inside the training distribution → **ready for the cov-arm retrain** (`cov_whiten: True`, ~10h CPU).
 
-**Post-retrain ablation (2026-07-31, whiten + extended kernel, n=50) — result SURVIVES and improves; supersedes P2-D11's "monotonic" framing.** clean-ref 0.68/−0.10. no-cond 1.99/−8.41 · +σ **2.58/−8.82** · +σ+cov **2.21/−7.71** (width68/logdens). Coverage@68 (nominal 0.68): no-cond 0.587, +σ 0.733, +σ+cov **0.687**.
+**Post-retrain ablation (2026-07-31, whiten + extended kernel, n=50) — result SURVIVES and improves; supersedes P2-D11's "monotonic" framing.** **[LATER SUPERSEDED by P6-D2: the no-cond 0.587 here is an untrained MPS run.]** clean-ref 0.68/−0.10. no-cond 1.99/−8.41 · +σ **2.58/−8.82** · +σ+cov **2.21/−7.71** (width68/logdens). Coverage@68 (nominal 0.68): no-cond 0.587, +σ 0.733, +σ+cov **0.687**.
 - **+σ+cov is best by logdens AND best-calibrated at 68%** — highest density-at-truth *and* closest to nominal coverage. Core claim holds under the realistic short-range kernel.
 - **Ordering changed: +σ < no-cond < +cov (was monotonic no-cond<+σ<+cov in P2-D11).** +σ alone is now the WORST arm — under short-range correlated noise the diagonal σ can't see the structure, so it over-widens (widest, 2.58) and misplaces density (lowest logdens). **This STRENGTHENS the thesis:** marginal error bars are insufficient/counterproductive; only the covariance embedding (WI-3) recovers calibration. Directly answers "why not just condition on σ?" — because it's the worst option. Coverage confirms: no-cond overconfident (0.587<0.68), +σ over-widened (0.733>0.68), +cov ≈ nominal.
 - Adaptivity holds: cov−nocond Δlogdens +0.64/+0.59/+0.87 across σ tertiles (largest at high σ; mid dip within ~17-planet/bin noise).
@@ -277,7 +277,7 @@ Trained the two missing radius-model arms (`configs/noisecond_rad_nocond` = no n
 
 ### P4-D2 — Phase 4 completed: ABC-win figure + full corner + calibration robustness [Phase 4]
 Rounded out Phase 4 to complete (not just the real-data ablation). Three additions:
-- **ABC-ablation figure (`fig5`, the honest OTHER half):** re-ran the Phase-2 noise-conditioning ablation (`run_noisecond_ablation.py --save`, 50 planets, `data/real_ess/abc_ablation.npz`) — on synthetic data where truth is known, **noise-conditioning WINS**: coverage@68 no-cond 0.587 (overconfident) → +σ/+cov 0.687 (restored to nominal); +σ+cov − no-cond log-density gap GROWS with σ (+0.64 low → +0.87 high = adaptivity). Lets the paper show "cov wins on ABC" beside "cov doesn't transfer to real" (P4-D1) in one honest arc.
+- **ABC-ablation figure (`fig5`, the honest OTHER half):** **[SUPERSEDED by P6-D2 — both claims in this bullet came from an untrained MPS baseline; the figure must be regenerated from `configs/h9_*`.]** re-ran the Phase-2 noise-conditioning ablation (`run_noisecond_ablation.py --save`, 50 planets, `data/real_ess/abc_ablation.npz`) — on synthetic data where truth is known, **noise-conditioning WINS**: coverage@68 no-cond 0.587 (overconfident) → +σ/+cov 0.687 (restored to nominal); +σ+cov − no-cond log-density gap GROWS with σ (+0.64 low → +0.87 high = adaptivity). Lets the paper show "cov wins on ABC" beside "cov doesn't transfer to real" (P4-D1) in one honest arc.
 - **Full 7-param corner (`fig4`):** calibrated MIRAGE vs NS anchor, contours track across all params.
 - **Calibration robustness (`run_robustness.sh`):** OT-cal robust to the inflation hyperparameter — inflate {1.0,1.5,2.0} → radius 1.231/1.232/1.233, logH2O −3.15/−3.09/−2.99, **7/7 coverage at all three**; with earlier floor-stability (5/2/1%), the result is not a tuning artifact.
 
@@ -543,6 +543,8 @@ The forward-model systematic dominates **100% of bins on all three targets**. A 
 
 The published synthetic win was measured on the **6-param ABC** arms while the real-data test used the **7-param radius** arms, so "wins on synthetic, fails on real" was a cross-family comparison. Added `--family {abc,rad}` to `run_noisecond_ablation.py` (default `abc`, published result untouched) and re-ran identically on the radius arms: 50 planets x 1000 samples, same seed.
 
+> **[SUPERSEDED by P6-D2, 2026-11-07.]** The no-cond and +sigma rows below are failed MPS runs. Retrained, all synthetic arms sit at nominal and conclusion 1 ("calibrates from either direction") is withdrawn. Only the real-JS column survives. Kept as the historical record.
+
 Coverage@68 vs known truth (nominal 0.68), beside real JS-to-NS:
 
 | arm | ABC | radius | real JS |
@@ -661,3 +663,113 @@ P5-D7 narrowed the radius-recovery claim from three targets to one, because only
 **Bookkeeping gotcha.** `backup_interval` sets how often `model__latest.pt` is written, and early stopping exits without a final save. `h9_rad_cov_s42` ran at 100, so its `model__latest.pt` is stale at epoch 200 (it stopped ~232; history to epoch 225 is in `history_to_ep225.csv`). Do not resume that directory: it would retrain from 200 and could overwrite `model__best.pt` (epoch 182, the one to evaluate). The other 11 ran at `backup_interval: 1`. Disk use is driven by `snapshots/` (13 MB per LR drop), not by this setting.
 
 **Next.** Re-run coverage@68 and real JS-to-NS on all 12 `model__best.pt`. Until then the "calibrates from either direction" claim should be treated as unsupported, not provisional, and the MPS no-cond numbers should not be quoted.
+
+---
+
+### P6-D2 — H9 evaluated: the synthetic conditioning win is withdrawn, the real-data failure survives [Phase 6, 2026-11-07, MAJOR]
+
+**What ran.** Coverage@68 on all 12 `configs/h9_*/model__best.pt` (50 planets x 1000 samples, test-seed 1234), and real WASP-39b JS-to-NS on the 6 radius arms (1000 draws each, IS-free, against `wasp39b_ns_posterior_fitrad.npz`). Added `--train-seed` to `run_noisecond_ablation.py` and registered the 6 H9 radius arms in `real_ess.py`; defaults unchanged. Pipeline validated by reproducing the three published real-side values exactly (0.352 / 0.371 / 0.428) through the same code path.
+
+**Synthetic, coverage@68, nominal 0.68, mean +- sd over 3 training seeds.**
+
+| arm | ABC | radius | published ABC | published radius |
+|---|---|---|---|---|
+| no-cond | 0.692 +- 0.013 | 0.692 +- 0.016 | 0.587 | 0.817 |
+| +sigma+cov | 0.698 +- 0.011 | 0.693 +- 0.014 | 0.687 | 0.700 |
+
+The published values span 0.587 to 0.817 and that spread was the entire phenomenon. Retrained, all four arms fall between 0.692 and 0.698, every one at nominal. Conditioning's measured gain is -0.006 on ABC (0.5x the pooled seed sd) and -0.001 on radius (0.1x). The effect shrank 15x and 123x. Log-density is a tie on ABC (-7.80 vs -7.79); radius favours no-cond by 0.25 nats against a cov seed sd of 0.225, so about 1x spread and not a signal.
+
+**"Calibrates from either direction" is withdrawn.** It required a baseline miscalibrated in two directions. There was none; there were two failed MPS runs.
+
+**The Phase-4 adaptivity claim falls with it.** `04_track1_phase4.md` reported the +sigma+cov minus no-cond log-density gap GROWING with injected sigma, +0.64 to +0.87. Retrained it is +0.08 / -0.00 / +0.07 across sigma tertiles: flat, and an order of magnitude smaller. Note the script's own auto-verdict text reads the first and last bin only and still prints "the adaptivity story" on the radius family, where the sequence is -0.09 / -0.19 / +0.05 and the aggregate favours no-cond. Do not quote that sentence; the heuristic was written when the effect was real.
+
+**Real data, mean 1-D JS to the NS anchor, lower is closer.**
+
+| arm | s42 | s43 | s44 | mean +- sd | published |
+|---|---|---|---|---|---|
+| no-cond | 0.341 | 0.347 | 0.342 | **0.344 +- 0.003** | 0.352 |
+| +sigma+cov | 0.434 | 0.411 | 0.435 | **0.426 +- 0.014** | 0.428 |
+
+Gap +0.083 against the published +0.076, at **8.4x the pooled seed sd**. This survives.
+
+**Why one half died and the other did not.** Undertraining moved synthetic coverage by 0.114 and the real JS by 0.008. Synthetic coverage is measured against truths drawn from the same prior the model trained on, so a fit defect shows up directly. The real-side metric measures distance from an independent anchor, and the conditioned arms carry a systematic bias that undertraining does not touch: at seed 42 the per-parameter JS is driven by T (1620 K for +cov against the anchor's 608 K, JS 0.693) and log_CO2 (JS 0.631), against 1064 K and 0.342 for no-cond. +cov is worse on 5 of 7 parameters.
+
+**The revised claim.** Noise conditioning gives no measurable benefit on synthetic benchmarks and degrades real-data retrieval. This is simpler than the published dissociation and does not depend on a synthetic win that was an artifact, and the surviving half is the seed-robust half.
+
+**Consequence for A5/H8.** The real-side result is now the only surviving quantitative claim, and "worse" means "further from TauREx nested sampling". Validating that anchor against an independent retrieval code moves from hardening to load-bearing.
+
+**Still outstanding.** The +sigma row is withheld, not corrected: `noisecond_rad_sigma` is a third failed MPS run (best val 1.3729 where its family trains to 1.13) and was never retrained. ABC +sigma trained fine on MPS at 1.3873, so backend alone does not condemn a run; check the loss.
+
+**Retractions applied.** `README.md` conditioning section, `07_state_gaps_and_research_agenda.md` sections 4.2 / G1 / G2 / H9 / closing caveat, `04_track1_phase4.md` fig5 bullet. `fig5_abc_ablation.png` must be regenerated from `configs/h9_*` before reuse.
+
+---
+
+### P6-D3 — G1 closed: CycleGAN translation degrades the posterior, it does not merely mismatch the noise [Phase 6, 2026-11-07]
+
+**The gap.** Every translation result so far was distributional (MMD, KL, mean shift). A reviewer's first question is whether any of it reaches inference. G1 existed because the paper claimed a translation result while measuring only distribution.
+
+**The test.** `configs/cyclegan_posterior_cov` is `configs/noisecond_cov` with one line changed, `dataset.file_path` pointing at `abc_translated_train.hdf` (built by `scripts/build_translated_abc.py` from the recovered epoch-199 generator). Both trained on CPU to early stopping, 174 and 173 epochs. Evaluated identically, 50 planets x 1000 samples on `abc_test.hdf`, test-seed 1234, via `run_noisecond_ablation.py --arm-dir` (added for this).
+
+| | sim | translated |
+|---|---|---|
+| coverage@68 | **0.690** | 0.557 |
+| coverage@95 | 0.987 | 0.853 |
+| width@68 | 2.222 | 2.020 |
+| logdens | **-7.71** | -17.65 |
+| logdens by sigma tertile | -7.57 / -7.66 / -7.90 | -18.73 / -20.17 / -14.21 |
+
+**Result.** Training on translated data costs 10 nats of log-density and drops coverage from nominal to 0.557, while *narrowing* the 68% interval from 2.222 to 2.020. Narrower intervals with worse coverage is overconfidence, not a precision-calibration trade. Worse in every sigma tertile. The single-line config difference makes translation the only possible cause.
+
+**Why this matters more than the MMD number.** "Translation does not match the real noise distribution" invites the reply that the metric is wrong. "Translation makes the posterior worse by 10 nats" does not. The negative is now inferential.
+
+**Do not compare the two runs by validation loss.** `cyclegan_posterior_cov` reports best val 1.1908 against `noisecond_cov`'s 1.3893, which looks like a win and is meaningless: they are computed on different validation sets, since the dataset path is the thing that differs. Only the shared-test-set evaluation above is comparable. Flagging because the loss numbers sit side by side in the two config directories and will mislead whoever looks next.
+
+**Consequence.** V3 stands: retire CycleGAN, keep it as a negative control. The replacement work is V2's cheap baselines (per-bin affine, quantile mapping, classifier reweighting), which a learned translator has to beat before it is worth training again.
+
+---
+
+### P6-D4 — Multi-target models cleared; the real bug was that device was confounded with arm [Phase 6, 2026-11-07, MAJOR]
+
+**The worry.** P6-D1 found the published no-conditioning baselines were failed MPS runs. Every multi-target model is also MPS (`noisecond_rad_nocond_k218` ep 85 / 1.2141, `_wasp96` 138 / 1.1885, `_hires` 138 / 1.0729, `transformer_abc` 144 / 0.8247). Those underpin Table 2 and P5-D12 and have no CUDA twin, so only a control rerun could clear them.
+
+**The controls.** Three configs (`ctrl_k218_s42`, `ctrl_wasp96_s42`, `ctrl_hires_s42`), each `diff`-verified against its published original as differing in exactly three lines, `device`, `backup_interval`, `n_workers`.
+
+| control | CUDA best val | published MPS | gap |
+|---|---|---|---|
+| K2-18b | 1.1822 | 1.2141 | +0.032 |
+| WASP-96b | 1.2110 | 1.1885 | **-0.022** |
+| hires | running | 1.0729 | pending |
+
+**Verdict: not broken.** Both trained normally (+0.65 train gain). The gaps are an order of magnitude below the degraded case and go in *opposite directions*, which no systematic backend penalty can produce.
+
+**On the tolerance.** I was asked to widen the agreement band from 0.02 to 0.04 on the grounds that seed noise spans 0.038. It does not, in the relevant reference class. Measured per-group spread over the twelve H9 runs:
+
+| group | range | sd |
+|---|---|---|
+| abc nocond | 0.0023 | 0.0012 |
+| abc cov | 0.0124 | 0.0062 |
+| rad nocond | 0.0087 | 0.0045 |
+| **rad cov** | **0.0381** | **0.0191** |
+
+The 0.038 is `rad cov`, the widest of four and the only group carrying the covariance embedding. The multi-target models are all nocond arms, whose matched spread is sd 0.0033. Against that, +0.032 is ~10 sigma, so calling it ordinary seed noise is wrong even though the conclusion it supports is right.
+
+I rejected the wider threshold and replaced the single tolerance with bands, because the measured gaps separate themselves by about 4x at every boundary and need no tuning: <0.02 reproduces, 0.02-0.05 backend shift, 0.05-0.40 degraded, >0.40 catastrophic. The three known cases land one per band (+0.533 / +0.115 / +0.032). A backend shift is real but acceptable, and naming it separately keeps the degraded detector at full sensitivity.
+
+**The actual finding.** Device was perfectly confounded with arm type across every noise-conditioning run:
+
+| arm type | device | n |
+|---|---|---|
+| cov | cpu | 4/4 |
+| sigma | mps | 2/2 |
+| nocond | mps | 5/5 |
+
+The cov branch was moved to CPU because its batched-cov matmul was slow on MPS, and that choice is recorded in `noisecond_rad_cov/config.yaml`. So every baseline ran on the unreliable backend and every treatment arm ran on a reliable one. MPS is a lottery rather than a constant penalty, 1 catastrophic and 2 degraded out of 6 runs with the rest fine, so the bias was uncontrolled rather than uniform. This is the mechanism behind P6-D1: the conditioning "effect" was partly a compute-backend effect wearing the treatment's label.
+
+**Which claims this kills and which it strengthens.** A broken baseline only invalidates a claim when the breakage favours that claim.
+
+- *Killed* (already retracted, P6-D2): ABC coverage and the sigma-adaptivity panel. Broken nocond made conditioning look good.
+- *Strengthened*: P4-D1's real-WASP-39b result that cov does **not** help. There the healthy arm was cov (CPU, 1.1475) and the handicapped arms were nocond and sigma (MPS), yet nocond still won on JS-to-NS, 0.358 against 0.430. The bias worked against the conclusion and the conclusion held anyway. P6-D2's independent remeasurement on CUDA agrees, +0.083 against the published +0.076.
+
+**Open.** `noisecond_rad_sigma` (MPS, 1.3729) sits 0.21-0.25 above the rad CUDA band of 1.124-1.159, so I predict it is degraded by roughly 0.24, worse than `rad_nocond` was. Job B's `h9_rad_sigma_s42` settles it. If confirmed, the sigma-only column of the P4-D1 table is unusable and should be dropped rather than reported, since the nocond and cov columns already carry that table's conclusion.
+
+**Consequence.** Table 2 and P5-D12 clear on training grounds, pending the hires control. Record the device beside every reported model from here on, and never let the backend vary with the arm being compared.

@@ -36,7 +36,19 @@ ignores noise and does fine. Whitening (P3-D1) narrowed but did not close that g
 real target also cannot capture cov's calibration-over-population benefit — that is the Phase-2
 ABC result (cov > σ > nocond by coverage over many planets with known truth).
 
-**Framing:** noise-conditioning is validated on **synthetic ABC (Phase 2)**; on real JWST the
+**P6-D4 revisit, and this table survives.** All three arms here were run on mixed backends: nocond
+and sigma on MPS, cov on CPU. The MPS runs are the unreliable ones, so the two arms that *beat* cov
+were the handicapped ones. `noisecond_rad_nocond` is degraded by 0.115 against its CUDA twin and
+still won on JS-to-NS, 0.358 against 0.430. The bias worked against this table's conclusion and the
+conclusion held anyway, so the negative result is stronger than it looked, not weaker. P6-D2's
+independent CUDA remeasurement agrees, +0.083 against the published +0.076.
+
+**Drop the sigma column.** `noisecond_rad_sigma` (1.3729) sits about 0.24 above the radius CUDA
+band, worse than nocond's degradation, so its 0.132 / 0/7 / 0.365 row is not usable. The nocond and
+cov columns already carry the conclusion. Pending confirmation from `h9_rad_sigma_s42`.
+
+**Framing (superseded by P6-D2: the synthetic validation is withdrawn, so only the real-data half
+of this framing stands).** noise-conditioning is validated on **synthetic ABC (Phase 2)**; on real JWST the
 dominant sim-to-real gap was the **radius/baseline degeneracy** (fixed, P3-D11) plus
 **calibration** (OT, P3-D13). We report the noise-embedding non-transfer honestly — it is a
 genuine sim-to-real lesson, and a stronger paper than over-claiming.
@@ -63,10 +75,14 @@ a physical, literature-consistent, 7/7-covered posterior.**
 - **`fig3_spectrum_fit.png`** — real WASP-39b transit spectrum + MIRAGE best-fit model (χ²/dof≈0.03).
 - **`fig4_corner.png`** — full 7-param corner, calibrated MIRAGE (blue) vs NS anchor (grey);
   contours track across all parameters.
-- **`fig5_abc_ablation.png`** — the honest OTHER half: on synthetic ABC (truth known),
-  noise-conditioning WINS — (a) no-cond under-covers (0.587<0.68 nominal), +σ/+cov restore to
-  0.687; (b) the +σ+cov − no-cond log-density gap GROWS with injected σ (+0.64→+0.87), the
-  adaptivity result. `scripts/run_noisecond_ablation.py --save` → `data/real_ess/abc_ablation.npz`.
+- **`fig5_abc_ablation.png`** — **RETRACTED by P6-D1 / P6-D2.** Both claims this panel made came
+  from a no-cond baseline that never trained (MPS, best val 1.923 against 1.390 on CUDA at the
+  same config and seed). (a) "no-cond under-covers (0.587<0.68)" is false; retrained it sits at
+  0.692 ± 0.013, with +σ+cov at 0.698 ± 0.011, a gap 0.5x the training-seed spread. (b) the
+  log-density gap does not grow with σ; at +0.08 / −0.00 / +0.07 across σ tertiles it is flat and
+  an order of magnitude smaller than the +0.64→+0.87 reported here. The figure must be regenerated
+  from the `configs/h9_*` runs before it is used again.
+  `scripts/run_noisecond_ablation.py --train-seed 42 --save` → `data/real_ess/h9_abc_s42.npz`.
 
 ---
 

@@ -138,15 +138,48 @@ than the prior's own central 68%, so containment is informative rather than vacu
 
 ### 4.2 Noise conditioning, coverage@68, nominal 0.68
 
+**H9 ANSWERED. The synthetic half is withdrawn, the real half survives (P6-D1, P6-D2).**
+
+The published no-conditioning arms were trained on MPS and never converged. Retrained on CUDA at
+identical configs and seeds, 3 seeds per arm:
+
 | arm | ABC (6-param) | radius (7-param) | real JS to NS |
 |---|---|---|---|
-| no conditioning | 0.587 | 0.817 | **0.352** |
-| + sigma | 0.687 | 0.903 | 0.371 |
-| + sigma + covariance | 0.687 | 0.700 | 0.428 |
+| no conditioning | 0.692 ± 0.013 | 0.692 ± 0.016 | **0.344 ± 0.003** |
+| + sigma + covariance | 0.698 ± 0.011 | 0.693 ± 0.014 | 0.426 ± 0.014 |
 
-Claim is "calibrates from either direction", not "raises coverage". **Status: provisional
-pending H9.** If the 0.352 to 0.428 gap sits inside training-seed dispersion, this result
-must be withdrawn.
+Superseded, do not quote: 0.587, 0.817, 0.687, 0.700, 0.352, 0.428. The +sigma row (0.687 / 0.903
+/ 0.371) is withheld, not corrected, because `noisecond_rad_sigma` is a third failed MPS run and
+has not been retrained. It sits at 1.3729 against a radius CUDA band of 1.124 to 1.159, so the
+degradation is about 0.24, worse than `rad_nocond`'s 0.115. Job B's `h9_rad_sigma_s42` settles it
+(P6-D4).
+
+Every synthetic arm is now at nominal. The conditioning gap is 0.5x the seed spread on ABC and
+0.1x on radius, so "calibrates from either direction" is withdrawn; it required a baseline
+miscalibrated in two directions, and that was the training failure.
+
+The real-side gap is +0.083 nats at **8.4x the seed spread** and replicates the published +0.076,
+so the transfer failure stands on its own. Undertraining moved synthetic coverage by 0.114 and the
+real JS by 0.008, which is why one half died and the other did not. Mechanism is a systematic
+bias, not miscalibration: conditioning drives retrieved T to 1620 K against the anchor's 608 K.
+
+**Why the baselines broke and the treatment arms did not (P6-D4).** Device was perfectly
+confounded with arm. All four cov arms ran on CPU, because the batched-cov matmul was slow on MPS
+and the choice is recorded in `noisecond_rad_cov/config.yaml`. All five nocond arms and both sigma
+arms ran on MPS. MPS is a lottery rather than a constant penalty, 1 catastrophic and 2 degraded out
+of 6 runs, so every baseline carried an uncontrolled risk that the treatment arms did not. The
+conditioning "effect" was partly a compute-backend effect wearing the treatment's label. Record the
+device beside every reported model, and never let the backend vary with the arm being compared.
+
+**The multi-target models are clear (P6-D4).** They are also all MPS, so I reran two as CUDA
+controls at `diff`-verified identical configs. K2-18b 1.1822 against the published 1.2141, WASP-96b
+1.2110 against 1.1885. The gaps are an order of magnitude under the degraded case and point in
+opposite directions, which no systematic backend penalty produces. Table 2 and P5-D12 clear on
+training grounds, with the hires control still running.
+
+**The revised claim:** noise conditioning gives no measurable benefit on synthetic benchmarks and
+degrades real-data retrieval. This now rests entirely on TauREx-NS being a valid anchor, which
+makes A5/H8 load-bearing rather than a hardening task.
 
 ### 4.3 Translation, 3,241 real OOT frames
 
@@ -160,6 +193,26 @@ Translation is **2.6x worse than no adaptation**. A control varying only frame c
 the CycleGAN's MMD collapsing 71% while sim and random moved under 1%, so the cross-target
 version is a small-sample artifact and is not evidence about targets.
 
+**Posterior-level, G1 closed (P6-D3, 2026-11-07.)** The distributional result above says
+translation does not match real noise. This says it does not help inference either, which is
+the claim the paper actually needs. `cyclegan_posterior_cov` differs from `noisecond_cov` in
+exactly one line, the dataset path, so the difference is attributable to translation alone.
+50 planets x 1000 samples on `abc_test.hdf`:
+
+| | sim | translated |
+|---|---|---|
+| coverage@68 (nominal 0.68) | **0.690** | 0.557 |
+| coverage@95 | 0.987 | 0.853 |
+| width@68 | 2.222 | 2.020 |
+| logdens | **-7.71** | -17.65 |
+
+Training on translated data costs **10 nats** of log-density and drops coverage to 0.557 while
+*narrowing* the intervals. Narrower plus worse coverage is overconfidence, not a trade-off.
+Worse in all three sigma tertiles (-18.73 / -20.17 / -14.21 against -7.57 / -7.66 / -7.90).
+
+So the CycleGAN negative is now inferential, not just distributional: translation actively
+degrades the posterior. Retire CycleGAN and keep it as a negative control (V3).
+
 ### 4.4 Never repeat
 
 `chi2/N = 0.06` (floor-mismatched; use 1.44 or 0.66) · `coverage 7/7` (circular) ·
@@ -170,11 +223,14 @@ anything from `ablation_results_v2.json` before 2026-11-01.
 
 ## 5. Every known gap
 
-**G1. The translation claim is distributional, not inferential.** Being fixed:
-`configs/cyclegan_posterior_cov` differs from `noisecond_cov` in exactly one line.
+**G1. The translation claim is distributional, not inferential.** CLOSED.
+`configs/cyclegan_posterior_cov` differs from `noisecond_cov` in exactly one line, the dataset
+path, so any difference is attributable to translation alone. Result in section 4.3.
 
-**G2. Every headline is a single run.** Evaluation-seed sweep running. **Training-seed
-variance is the one that matters and is not yet done. See H9.**
+**G2. Every headline is a single run.** CLOSED for the conditioning arms: 3 training
+seeds per arm, 12 runs, in `configs/h9_*` (P6-D1, P6-D2). Still open for every other headline,
+and the H9 runs vary `dataset.random_seed`, so their spread covers split plus init plus noise,
+which is wider than training-seed variance alone. Arms stay paired within a seed.
 
 **G3. No non-circular calibration validation.** The highest-priority gap. Closed by Tier 1
 injections (section 6.1), not by synthetic SBC alone.
@@ -247,9 +303,11 @@ population-level statistic that cannot be dismissed as N=3.
 
 ### 6.2 Hypotheses, in priority order
 
-**H9. Seed variance swamps the conditioning effect. TEST THIS FIRST.** The 0.352 to 0.428 gap
-may lie inside training-seed dispersion. If it does, the framing-B pillar-1 result must be
-withdrawn and the headline changes. Everything else is downstream of knowing this.
+**H9. Seed variance swamps the conditioning effect. ANSWERED, split verdict (P6-D1, P6-D2).**
+Tested with 12 CUDA runs, 2 families x 2 arms x 3 seeds, in `configs/h9_*`. Synthetic: yes, the
+effect is 0.1x to 0.5x the seed spread and is withdrawn, though the deeper cause is that the
+published baselines never trained rather than seed noise. Real: no, the 0.344 to 0.426 gap is
+8.4x the seed spread and stands. Pillar 1 is reshaped, not withdrawn. See section 4.2.
 
 **H5. The conditioning paradox comes from the noise proxy.** Real JS may rise under covariance
 conditioning because Sigma-hat from OOT *flux* misrepresents *depth*-noise covariance. Condition
@@ -344,6 +402,8 @@ separate, smaller paper. Do not merge them.
 **What will not move the needle:** more CycleGAN variants, more prose about the radius degeneracy,
 more synthetic-only coverage tables.
 
-**The one caveat on all of this:** the dissociation thesis is a prediction, not yet a result. If H9
-shows the conditioning gap is seed noise, the headline changes. The Tier 1 and Tier 2 benchmarks
-still stand on their own.
+**The one caveat on all of this:** H9 has now run, and the dissociation thesis did not survive
+in the form written here. The synthetic win was an artifact of untrained baselines, so the
+dissociation is not "wins on synthetic, fails on real" but "no synthetic benefit, real harm".
+The surviving half is the seed-robust one at 8.4x spread. The Tier 1 and Tier 2 benchmarks still
+stand on their own.

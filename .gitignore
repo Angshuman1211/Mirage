@@ -73,4 +73,9 @@ scratchpad_*.log
 zenodo_deposit/
 mirage_zenodo_data_v1.tar.gz
 
+# data archives built to move training sets between machines. Rebuildable from
+# data/ with tar, so they are transfer artifacts and do not belong in history.
+mirage_*.tgz
+mirage_*.tar.gz
+
 Making MIRAGE Publishable_ A Real-Noise Audit of Amortized Exoplanet Retrieval.pdf

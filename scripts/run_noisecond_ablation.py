@@ -107,10 +107,32 @@ def logdensity_at_truth(model, theta_scaler, ctx_single: dict, theta_true) -> fl
     return float(logq.reshape(-1)[0])
 
 
+def h9_arms(family: str, train_seed: int) -> dict[str, Path]:
+    """Retrained arms from the H9 seed study (P6-D1).
+
+    The published arms are not usable as a baseline: both no-cond runs were
+    trained on MPS and under-trained there (ABC best val 1.923 vs 1.390 on CUDA
+    at the same seed and config). These re-runs differ from the originals only
+    in backend, so the no-cond arm is a real baseline rather than a broken one.
+    `+sigma` has no H9 counterpart and is dropped.
+    """
+    tag = {"abc": "abc", "rad": "rad"}[family]
+    return {
+        "no-cond":    Path(f"configs/h9_{tag}_nocond_s{train_seed}"),
+        "+sigma+cov": Path(f"configs/h9_{tag}_cov_s{train_seed}"),
+    }
+
+
 def main(n_planets: int = 50, n_samples: int = 1000, test_seed: int = 1234,
-         clean_ref: bool = False, save: str | None = None, family: str = "abc") -> None:
+         clean_ref: bool = False, save: str | None = None, family: str = "abc",
+         train_seed: int | None = None, arm_dirs: list[str] | None = None) -> None:
     fam = FAMILIES[family]
     data_dir, test_file, fam_arms = fam["data"], fam["test"], fam["arms"]
+    if train_seed is not None:
+        fam_arms = h9_arms(family, train_seed)
+    if arm_dirs:
+        fam_arms = dict(p.split("=", 1) for p in arm_dirs)
+        fam_arms = {k: Path(v) for k, v in fam_arms.items()}
     print(f"Family '{family}': arms from {', '.join(str(p) for p in fam_arms.values())}")
     print(f"Test planets: {data_dir / test_file}")
     print("Loading arms (CPU; ODE solver needs float64) ...")
@@ -134,7 +156,10 @@ def main(n_planets: int = 50, n_samples: int = 1000, test_seed: int = 1234,
 
     if not arms and clean is None:
         raise SystemExit("Nothing to evaluate — train an arm or pass --clean-ref.")
-    inject = noise_transform(fam_arms["+sigma+cov"], test_seed) if arms else None
+    # Any arm's noise block works: all arms in a family share it. Fall back to the
+    # first arm when a custom --arm-dir set has no "+sigma+cov" key.
+    _src = fam_arms.get("+sigma+cov") or next(iter(fam_arms.values()))
+    inject = noise_transform(_src, test_seed) if arms else None
 
     order = (["clean-ref"] if clean else []) + list(arms)
     scalers = {name: arms[name][1] for name in arms}
@@ -279,7 +304,14 @@ if __name__ == "__main__":
     p.add_argument("--clean-ref", action="store_true",
                    help="also evaluate the clean Phase-1 model (no injection) as reference")
     p.add_argument("--save", type=str, default=None, help="npz path to persist arrays for figures")
+    p.add_argument("--train-seed", type=int, default=None,
+                   help="evaluate the H9 re-trained arms for this training seed "
+                        "(42/43/44) instead of the published arms")
+    p.add_argument("--arm-dir", action="append", metavar="NAME=PATH",
+                   help="override the arm set entirely, repeatable; e.g. "
+                        "--arm-dir 'sim=configs/noisecond_cov' "
+                        "--arm-dir 'translated=configs/cyclegan_posterior_cov'")
     args = p.parse_args()
     main(n_planets=args.n_planets, n_samples=args.n_samples,
          test_seed=args.test_seed, clean_ref=args.clean_ref, save=args.save,
-         family=args.family)
+         family=args.family, train_seed=args.train_seed, arm_dirs=args.arm_dir)
