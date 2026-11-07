@@ -28,16 +28,30 @@ abstract's headline with the corrected 301 to 1.44 at a stated floor, and cut th
 calibration claim. This is the highest credibility per minute available anywhere on the
 project.
 
-### Z2. Test H9. Everything downstream depends on the answer. (Angshuman)
+### Z2. Test H9. DONE, 2026-11-07. Split verdict (P6-D1, P6-D2). (Angshuman)
 
-The conditioning result (0.352 to 0.428) may sit inside training-seed dispersion. If it
-does, pillar 1 of framing B must be withdrawn and the paper's headline changes. Do not
-build on top of a result that might not exist.
+Ran as **12** runs, not 6: 2 families x 2 arms x 3 seeds, on an RTX 5070 at about 27x the
+Mac's per-batch speed, so the 14 h/arm constraint that capped the original scope no longer
+binds. Seed 42 reproduces each stored run's seeds exactly, which made it a backend control.
 
-Scope, given measured cost of about 14 h per FMPE arm on the laptop: **2 arms (no-cond and
-+sigma+cov) x 3 training seeds = 6 runs.** See the compute note below. The currently
-running evaluation-seed sweep is the *less* important variance and should be rescoped or
-killed rather than allowed to block the machine.
+**The answer was not the one the hypothesis anticipated.** The published no-conditioning arms
+were never a baseline: both were trained on MPS and failed to converge (ABC best val 1.923
+against 1.390 on CUDA at identical config and seed).
+
+- **Synthetic: withdrawn.** All four retrained arms sit at nominal, 0.692 to 0.698. The gap is
+  0.1x to 0.5x the seed spread. "Calibrates from either direction" is gone, and the Phase-4
+  adaptivity claim (+0.64 to +0.87 growing with sigma) goes with it, now flat at +0.08/+0.07.
+- **Real: survives, 8.4x the seed spread.** 0.344 +- 0.003 no-cond against 0.426 +- 0.014 cov,
+  replicating the published +0.076 gap as +0.083.
+
+**Pillar 1 is reshaped, not withdrawn.** The claim becomes "no measurable synthetic benefit,
+real-data harm", which no longer rests on an artifact. Because that is now the only surviving
+quantitative claim and it is measured as distance from TauREx-NS, **A5 is promoted**: it is no
+longer a hardening task, it is the foundation the result stands on.
+
+Outstanding: the +sigma row is withheld. `noisecond_rad_sigma` is a third failed MPS run
+(1.3729 where its family trains to 1.13) and needs 2 configs x 3 seeds, about 5.5 h, if the
+three-arm table is kept.
 
 ---
 
@@ -180,9 +194,9 @@ it is never cited as the posterior-level translation result.
 
 ## Order of operations
 
-1. **Z1** (arXiv v2) immediately. Hours, no compute, removes a false public claim.
-2. **Z2 / H9** next, on rented GPU. Nothing else is worth building until the conditioning result
-   is known to exist.
+1. **Z1** (arXiv v2) immediately. Hours, no compute, and it now carries three corrections
+   rather than two: the chi2 floor mismatch, the OT calibration, and the conditioning result.
+2. ~~**Z2 / H9**~~ DONE 2026-11-07. See above.
 3. **A1** (Tier 1) once H9 lands. Vedanth runs **V2** and **V3** in parallel; neither depends on
    the running jobs.
 4. **V1** the moment the translated arm finishes.

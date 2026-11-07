@@ -90,10 +90,13 @@ as a method contribution. Highest probability of publication, and the work large
 today once the circular claim is cut.
 
 **B. Sim-to-real negative results.** Venue: TMLR, which evaluates correctness and rigour rather
-than novelty. Thesis: SBI robustness techniques that win on synthetic misspecification
-benchmarks fail to transfer to real instrument noise. Evidence already in hand is covariance
-conditioning winning on synthetic ABC (coverage 0.587 to 0.687) and not transferring to real,
-plus the null CycleGAN result. This is the strongest genuinely ML-shaped claim left standing.
+than novelty. Thesis, **revised 2026-11-07 by P6-D2**: SBI robustness techniques that show no
+measurable benefit on synthetic misspecification benchmarks actively degrade real-data
+inference. The original wording had conditioning *winning* on synthetic ABC at 0.587 to 0.687,
+and that win was an artifact of a baseline that never trained. Retrained, synthetic coverage is
+flat at nominal across all arms while the real-data degradation holds at 8.4x the training-seed
+spread. Evidence in hand is that plus the null CycleGAN result. Still the strongest genuinely
+ML-shaped claim left standing, and now it does not depend on a synthetic result that dissolved.
 
 **C. Build a real amortized calibration.** Venue: ICML, NeurIPS. Learn one transport on a
 calibration set and apply it to new targets with no per-target nested sampling, which is what
