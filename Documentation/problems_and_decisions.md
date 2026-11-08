@@ -734,13 +734,19 @@ Gap +0.083 against the published +0.076, at **8.4x the pooled seed sd**. This su
 
 **The controls.** Three configs (`ctrl_k218_s42`, `ctrl_wasp96_s42`, `ctrl_hires_s42`), each `diff`-verified against its published original as differing in exactly three lines, `device`, `backup_interval`, `n_workers`.
 
-| control | CUDA best val | published MPS | gap |
-|---|---|---|---|
-| K2-18b | 1.1822 | 1.2141 | +0.032 |
-| WASP-96b | 1.2110 | 1.1885 | **-0.022** |
-| hires | running | 1.0729 | pending |
+Gap below is published MPS minus CUDA, so positive means the published model is the worse one.
 
-**Verdict: not broken.** Both trained normally (+0.65 train gain). The gaps are an order of magnitude below the degraded case and go in *opposite directions*, which no systematic backend penalty can produce.
+| control | CUDA best val | CUDA ep | published MPS | MPS ep | gap | band |
+|---|---|---|---|---|---|---|
+| K2-18b | 1.1822 | 237 | 1.2141 | 85 | +0.032 | backend shift |
+| WASP-96b | 1.2110 | 150 | 1.1885 | 138 | **-0.022** | backend shift |
+| hires | 1.0665 | 217 | 1.0729 | 138 | +0.006 | reproduces |
+
+**Verdict: not broken.** All three trained normally (+0.65 to +0.77 train gain). No control lands in the degraded band, and the two that exceed the reproduction band point in *opposite directions*, which no systematic backend penalty can produce. Table 2 and P5-D12 hold on training grounds.
+
+**The epoch disparity is not a second problem.** The published K2-18b model early-stopped at epoch 85 against the control's 237, so it saw roughly a third of the training and its best arrived near epoch 35 rather than 187. It still landed 0.032 away. Early stopping at patience 50 fired on a genuine plateau, not a truncation, and the H9 runs show the same behaviour on CUDA (69 to 217 epochs at identical config) while holding best val inside 0.009 for nocond arms. Recording it because `ep=85` looks alarming next to the others and is not.
+
+**Verification boundary.** I reproduced every published MPS number exactly from the local checkpoints and `diff`-verified all three control configs myself. The CUDA best vals are reported from the other machine and cannot be checked here, because checkpoints are gitignored and only `config.yaml`, `git-hash.txt` and `requirements.txt` were pushed.
 
 **On the tolerance.** I was asked to widen the agreement band from 0.02 to 0.04 on the grounds that seed noise spans 0.038. It does not, in the relevant reference class. Measured per-group spread over the twelve H9 runs:
 
@@ -772,4 +778,170 @@ The cov branch was moved to CPU because its batched-cov matmul was slow on MPS, 
 
 **Open.** `noisecond_rad_sigma` (MPS, 1.3729) sits 0.21-0.25 above the rad CUDA band of 1.124-1.159, so I predict it is degraded by roughly 0.24, worse than `rad_nocond` was. Job B's `h9_rad_sigma_s42` settles it. If confirmed, the sigma-only column of the P4-D1 table is unusable and should be dropped rather than reported, since the nocond and cov columns already carry that table's conclusion.
 
-**Consequence.** Table 2 and P5-D12 clear on training grounds, pending the hires control. Record the device beside every reported model from here on, and never let the backend vary with the arm being compared.
+**Consequence.** Table 2 and P5-D12 clear on training grounds, all three controls in. Record the device beside every reported model from here on, and never let the backend vary with the arm being compared.
+
+---
+
+### P6-D5 — A1 calibration instrument built and validated before use; TARP's reference distribution is a real choice [Phase 6, 2026-11-07]
+
+**Why validate first.** A1 exists because the Phase-3 OT calibration was circular (P5-D5). Shipping an unvalidated replacement would repeat the mistake with new code, so the diagnostics were tested against known-wrong posteriors before touching a MIRAGE model. `mirage/eval/sbc.py` plus `scripts/validate_sbc.py`.
+
+**Three tests, deliberately not interchangeable.**
+
+- *SBC ranks* (Talts et al. 2018). Rank of the truth among samples, per parameter. Uniform under exact inference, U-shaped when overconfident, bell when overdispersed, sloped when biased. Marginal, so blind to a wrong correlation structure.
+- *TARP* (Lemos et al. 2023). Joint. How often the truth is closer to a random reference point than the samples are.
+- *HPD ranks*. Joint, from the flow's own log-density rather than a metric. Fraction of samples denser than the truth.
+
+**Validation on a conjugate Gaussian toy**, five samplers, four wrong in a known direction, median of 3 seeds at 400 sims x 999 samples:
+
+| case | SBC min p | shape | TARP p | HPD p |
+|---|---|---|---|---|
+| exact | 0.30 | flat | 0.57 | 0.51 |
+| overconfident (sd x 0.5) | 2e-84 | U-shaped | 7e-80 | 5e-120 |
+| overdispersed (sd x 2) | 1e-38 | bell | 1e-40 | 2e-129 |
+| biased (+1.0 sd) | 3e-108 | sloped | 6e-24 | 4e-47 |
+| **decorrelated** (correct marginals, rho 0.9 to 0) | **0.30** | **flat** | **1.4e-03** | **1.3e-16** |
+
+The last row is the load-bearing one. SBC ranks stay flat while both joint tests fire, which is the only reason reporting three statistics is worth the space rather than one.
+
+**The TARP reference distribution is not a free parameter.** Theorem 1 permits any reference that does not depend on the truth, which includes one built from the posterior samples themselves, since those are independent of the truth given x. That constrains validity, not power, and the two choices differ a lot:
+
+| case | uniform over prior box | Gaussian matched to the posterior |
+|---|---|---|
+| exact (null) | p 0.84 | p 0.70 |
+| biased 0.5 sd | p 0.52, blind | p 5.7e-03 |
+| decorrelated | p 1.7e-03 | p 3.8e-04 |
+
+Diffuse references put the truth deep inside a huge ball whose mass barely shifts when the posterior is wrong. Default changed to `reference="posterior"`, with `"box"` kept as an option. The null stays calibrated under both, which is the part that matters, since power bought with a broken null is worthless.
+
+**Measured sensitivity floor, 30 seeds.** Null: median p 0.52, zero false alarms at 0.01, and the p-values are themselves uniform (KS p 0.66). Power at 0.01: a 0.5-sigma bias is detected 57% of the time, a 1.0-sigma bias 100%, the decorrelated case 90%. So TARP's floor at this N is roughly half a sigma, where it is a coin flip. The validation file uses a 1.0-sigma bias to stay deterministic. **Do not read a single passing TARP p-value as proof of calibration**; this is why the two unexplained single-seed values I first saw (0.013 on the null, 0.090 on the bias) were seed noise rather than bugs, and why the regression test takes a median.
+
+**Next.** `scripts/inject_real_noise.py`, where G13 bites: OOT residuals are flux noise and Tier 1 needs depth noise. Proper construction on WASP-96b only, via pseudo-transits injected into OOT segments through the existing `wasp96_fit_lightcurves.py`, with the flux-noise approximation stated for the other two targets rather than applied silently.
+
+---
+
+### P6-D6 — Tier-1 noise: the real frames set the structure, the published errors set the scale [Phase 6, 2026-11-07, MAJOR]
+
+**G13 turned out to bite harder than stated.** The gap was logged as "OOT residuals are flux noise, Tier 1 needs depth noise", a units problem with a known fix: a depth is `1 - F_in/F_out`, so fractional flux errors `a` and `b` on the two means give `delta_meas ~= delta_true - (a - b)`, and a depth-noise realization is a difference of means of real frame residuals drawn disjointly from a held-out pool. That inherits the real cross-wavelength covariance and the 1/sqrt(N) averaging without assuming either. `scripts/inject_real_noise.py`.
+
+**The amplitude audit then failed, which is why it exists.** On WASP-39b PRISM the frames cannot reach the published precision by any amount of averaging. Per-bin frame scatter is 4.8e-3 and the rebinned published error bar is 2.9e-5, so matching it needs about 56,000 frames per side. 810 exist. Detrending does not rescue it:
+
+| treatment | per-bin sigma | achievable at 810 frames |
+|---|---|---|
+| raw | 5.22e-3 | 9.1x published |
+| drop 2 pathological bins | 4.80e-3 | 8.4x |
+| minus common mode | 4.61e-3 | 8.0x |
+| minus common mode + linear trend | 4.61e-3 | 8.0x |
+| minus 3 PCA components | 3.92e-3 | 6.8x |
+
+So this is not removable systematics. The published side checks out independently: native published sigma is 7.5e-5 over 331 bins, and 331 to 52 rebinning cuts it by sqrt(6.4) = 2.5x to 3.0e-5, matching the measured 2.86e-5. The discrepancy is between the raw frame scatter and a *fitted* depth, and nothing in the OOT product closes it.
+
+**Consequence, and it reverses part of what I wrote first.** Injecting the raw amplitude would make the Tier-1 set about 9x noisier than real data, and a flow scores as well calibrated on noise it will never encounter. I had described the fit as something that only *adds* error the resampling misses. It also removes a great deal, and that is the dominant term. So the frames set the STRUCTURE and the published error bars set the SCALE, which is the same split P3-D1 already made for the covariance embedding (condition on structure, not scale). Rescaling each bin by `sigma_pub / sigma_realized` leaves the correlation matrix untouched and fixes the margin.
+
+**The structure is worth keeping, and it is instrument-specific.** Lag-1 wavelength correlation on WASP-39b PRISM is +0.312, at 121 sigma from a column-shuffled null, still +0.18 at lag 7, with the correlation matrix's top eigenvalue 8.09 where white noise gives ~1. Real-noise injection is therefore not a repackaged white-noise test. But NIRISS is nearly white, +0.078 on WASP-96b and +0.056 on K2-18b, so the correlated-noise argument is a PRISM result and WASP-39b is the only target where it carries weight. Do not generalise it to all three.
+
+**Per-target viability.** Amplitude matches 1.00x published everywhere by construction.
+
+| target | OOT frames | usable bins | real-noise fraction | lag-1 |
+|---|---|---|---|---|
+| WASP-39b PRISM | 3241 | 45/52 | 0.96 | +0.302 |
+| WASP-96b NIRISS | 56 | 89/90 | 0.99 | +0.078 |
+| K2-18b NIRISS | 96 | 100/150 | **0.67** | +0.056 |
+
+Two further traps found and closed. Bins where no real frames exist were getting EXACTLY zero noise while still carrying a stated error bar, which is not a conservative approximation but an impossible observation; they now get white noise at the published sigma and the fraction is recorded. And 2 PRISM bins at 1.16 and 1.27 um sit 30x above the median with `dq_flag == 0`, so they are dropped rather than allowed to dominate every realization. **K2-18b is only 67% real noise** because NIRISS stops at 2.82 um while its model grid runs to 5.17, so a third of that spectrum is a white-noise test wearing a real-noise label. Either restrict K2-18b Tier-1 claims to below 2.82 um or add the NIRSPEC G395H frames (488 frames, 2.88 to 3.72 um) and accept a residual gap to 5.17.
+
+**Frames are split contiguously**, not alternating, because JWST systematics are time-correlated and an even/odd split would leave the same drift on both sides of a nominally held-out partition.
+
+**Next.** The `--build` stage needs `mirage-taurex`. Then `depth_noise_wasp96.py`: prayer-bead resampling of real fit residuals through our own exoTEDRF plus batman pipeline (280 integrations, `fit_white` and `fit_bin` already factored for reuse). That is the only route to depth noise that carries the fit's own systematics, it exists only where we own the reduction, and WASP-96b is not the headline target. Its job is to measure how wrong the published-amplitude approximation is on the one target where both routes run.
+
+---
+
+### P6-D7 — Noise-scale audit: real sigma sits 23-139x below the training perturbation, entirely outside its range [Phase 6, 2026-11-07, MAJOR]
+
+**Found while normalising the Tier-1 set,** not by looking for it. Three separate noise scales exist in this codebase and they disagree. Median `flux_std` is 0.01325, which converts normalised to absolute depth.
+
+| channel | normalised sigma | absolute depth | vs real |
+|---|---|---|---|
+| training PERTURBATION (`InjectCorrelatedNoise`) | 0.05 - 0.30 | 6.6e-4 - 4.0e-3 | **23-139x larger** |
+| training `error_bars` from the HDF `noise` field | 1.52e-4 | 2.01e-6 | 0.071x, i.e. 14x smaller |
+| real published WASP-39b, same 52-bin grid | 2.16e-3 | 2.86e-5 | 1x |
+
+**The headline.** Real sigma is 23x below the *minimum* of the trained range, so real data does not sit at the edge of the distribution the sigma and covariance embeddings were trained on, it sits entirely outside it. P3-D1 and P4-D1 recorded this as "real noise ~10x below trained sigma". The measured factor is 23-139x depending on where in the sampled range you land, so the gap is one to two orders of magnitude rather than one.
+
+**This is the quantified mechanism for the conditioning paradox.** P4-D1 hypothesised that the cov arm fails on real data because it alone ingests an OOD input, and P6-D2 confirmed the failure empirically (+0.083 JS, cov drives T to 1620 K against the anchor's 608 K). The number above is why: the embedding is asked to interpret an error bar 23-139x smaller than any it saw. Nothing about the flow needs to be wrong for that to produce a confidently wrong posterior.
+
+**Correction to my own first reading.** I initially measured the HDF `noise` field, got "trained noise is 14x too small", and concluded the opposite sign to P3-D1. That field is only the reported error-bar context, not the perturbation actually applied to the flux at train time, which lives in the config's `data_transforms`. The 14x discrepancy in that channel is real but separate and much less consequential, since the transform overwrites `error_bars` with `sqrt(diag(sigma_mat))` from the injected covariance. Worth fixing for consistency; not the story.
+
+**Consequence for A1, and it changes the design.** A Tier-1 set at published amplitude is OOD for the sigma embedding in exactly the way real data is. That is the point of Tier 1, but it cannot be read alone, because an intrinsic flow defect and a pure scale mismatch would produce identical SBC failures. So `inject_real_noise.py` gained `--sigma-scale`, and two sets are built per target:
+
+- `wasp39_tier1.hdf`, published amplitude, normalised sigma 0.0022, realistic and OOD.
+- `wasp39_tier0_indist.hdf`, the same injections scaled by 56.7 into the training range (normalised sigma 0.122), in-distribution.
+
+If calibration fails on Tier 1 and holds on Tier 0, the defect is the scale mismatch and the fix is retraining over a sigma range that contains real data. If it fails on both, the flow itself is miscalibrated. That is a decisive experiment and it was not available before this audit.
+
+**Hypothesis this now makes testable, not a result.** The real-data ESS collapse (1.0 to 42.5, P5) is consistent with a flow trained on noise 23-139x too large producing posteriors far too broad in the wrong places, so real data lands where the proposal has little mass. Tier 0 versus Tier 1 is the first measurement that can separate that from the forward-model mismatch it has been attributed to. Do not assert the link until that comparison is in.
+
+**Separate bug caught in the same pass.** `build_set` was writing RAW transit depth (~0.021) while the training and test HDFs store per-bin z-scored flux (mean 0.00, std 1.00 by construction, with `flux_mean` and `flux_std` kept for inversion). Feeding raw depth to the flow would have handed it an input roughly 100 sigma from anything in training, and it would not have raised an error, it would have returned nonsense. Now normalised exactly as `prepare_abc_hdf5.py` does, with raw depth retained as `flux_depth` for plots. Also fixed: 5 bins past the published spectrum's 5.33 um cutoff were getting NaN sigma written into the HDF, and the real-noise fraction was computed over a denominator that silently excluded them, overstating WASP-39b coverage as 0.96 when it is **0.87**.
+
+---
+
+### P6-D8 — A1 first result: MIRAGE is UNDER-confident on realistic noise, and conditioning HELPS against prior-draw labels [Phase 6, 2026-11-08, MAJOR]
+
+**The non-circular calibration check now exists and has run.** 200 prior draws per cell, 199 posterior samples each, WASP-39b radius arms, labels from the prior so no transport can game them. `scripts/sbc_report.py`, saved to `data/sbc/`.
+
+| arm | tier | normalised sigma | SBC min p | shape | TARP p | TARP dev | HPD p | cov@68 |
+|---|---|---|---|---|---|---|---|---|
+| nocond | Tier 0, in-distribution | 0.118 | 1.6e-09 | bell | 2.7e-07 | 0.195 | 2.0e-25 | 0.752 |
+| nocond | Tier 1, published | 0.0021 | 4.4e-56 | bell | 5.1e-06 | 0.175 | 1.5e-51 | **0.851** |
+| cov | Tier 0, in-distribution | 0.118 | 3.3e-05 | bell | 1.2e-02 | 0.110 | 1.4e-09 | **0.718** |
+| cov | Tier 1, published | 0.0021 | 2.6e-34 | bell | 2.8e-04 | 0.140 | 7.2e-30 | 0.806 |
+
+**Finding 1: the failure is UNDER-confidence, not overconfidence.** Every cell is bell-shaped with coverage ABOVE the nominal 0.68, so the intervals are too WIDE. Rank skew is at most 0.079 in magnitude everywhere, so this is a width error and not a bias. This is the opposite sign to the narrative the circular OT check supported, and opposite to the translated arm's overconfidence in P6-D3. Against labels that cannot be gamed, MIRAGE's posteriors on realistic noise are too conservative.
+
+**Finding 2: the sigma mismatch explains a large share but not all of it.** Moving from Tier 1 to Tier 0 is the only change, and it takes coverage 0.851 to 0.752 (nocond) and 0.806 to 0.718 (cov), recovering roughly two thirds of the excess. SBC p moves 47 and 29 orders of magnitude. So P6-D7's scale gap is a dominant, quantified driver, and retraining over a sigma range that contains real data is now a concrete v2 action with a predicted effect size rather than a caveat. But Tier 0 still fails, so the flow is also intrinsically over-dispersed and retraining alone will not close it. Both halves of that sentence are load-bearing.
+
+**Finding 3, and it reverses the conditioning verdict under a different evaluator.** The cov arm is BETTER calibrated than nocond in every cell: coverage 0.718 against 0.752 on Tier 0 and 0.806 against 0.851 on Tier 1, TARP deviation 0.110 against 0.195, SBC p four orders of magnitude less extreme. On Tier 0 the cov arm is close to calibrated on 5 of 7 parameters (logH2O 0.11, logCO2 0.60, logCH4 0.92, logCO 0.096, logNH3 0.022).
+
+This does NOT contradict P6-D2, it bounds it. P6-D2 measured JS divergence to the TauREx-NS posterior on one real target and found cov worse by 0.083. That comparison is only as good as the anchor. This one uses prior draws as truth, and the ranking flips. **So "noise conditioning degrades retrieval" is conditional on the NS anchor being correct**, which A5/H8 was already flagged as load-bearing for. Against ground-truth labels, conditioning improves calibration. Report both and say which evaluator each rests on; do not quote the Phase-4 or P6-D2 conclusion as if it were evaluator-independent.
+
+**Finding 4: rp_rj is the worst-calibrated parameter in every single cell**, from 3.3e-05 to 4.4e-56, consistently the minimum. The free radius is the project's headline fix (P3-D11, chi-square 301 to 0.06), and its posterior is the most over-wide of the seven. That needs saying in the paper rather than discovering it in review.
+
+**Method note, TARP behaved as measured.** On cov/Tier 0, TARP gives p = 0.012 and would alone call that cell calibrated, while SBC (3.3e-05) and HPD (1.4e-09) both reject. That is exactly the power floor measured in P6-D5, where TARP detects a half-sigma bias only 57% of the time. It is the reason three statistics are reported, and a reason not to lead with TARP.
+
+**Caveats to carry.** One training seed (s42) per arm; s43 and s44 exist and the conditioning ranking should be checked against them before it goes in a paper. n = 200 per cell, which is 10 per SBC bin, so per-parameter p-values near 0.01 are not firm. Tier 1 is 87% real noise on WASP-39b, the rest white at the published amplitude. The Tier-0 set scales the same realizations by 56.7, so Tier 0 and Tier 1 are not independent draws and the comparison between them is paired by construction, which is the point.
+
+**Next.** Repeat across s43/s44 for the conditioning ranking; run wasp96 (sigma only 2x below training, so a weaker scale mismatch is predicted) and k218; then the retraining experiment that P6-D7 and this entry jointly motivate, a radius arm trained over a sigma range reaching down to real published error bars.
+
+---
+
+### P6-D9 — Framing B locked, Track 2 reassigned against the Track 1 critical path, A5 promoted to gating [Phase 6, 2026-11-08, PLANNING]
+
+**The problem.** Three separate things had drifted out of alignment. Framing B was recorded as settled on 2026-11-01 but the work split still read as if A, B and C were live. Track 2 had not moved since 2026-08-18 and no `phase-6-track-2` branch existed, while framing B depends on Track 2 for one of its two pillars. And A5 was ranked below H9 on the stated grounds that it "hardens numbers, it cannot kill a claim", which stopped being true the moment P6-D8 landed.
+
+**Framing B locked.** Sim-to-real negative results, TMLR. The consequence that needs stating plainly is that B rests on exactly two findings, the conditioning result and the null translation result, and the second one is Track 2's. Under the v1 framing the translation work was a paragraph that could be cut at no cost. Under B it is a pillar, so its weakest point becomes a submission risk rather than a footnote.
+
+**That weakest point is the CycleGAN real side.** It is one reduced WASP-39b spectrum bootstrap-expanded to 500 samples with 1 percent photon-noise jitter. The external audit flagged it as near-certain overfitting and the objection is sound. A reviewer removes a pillar with one sentence, "the translator failed because it was trained on one spectrum jittered 500 ways", at no cost to themselves. Three real reduced spectra now exist, so this is correctable rather than terminal. Added as V7, the only remaining CycleGAN run the project does, and explicitly exempted from the standing "no more CycleGAN variants" rule because it is a correction to an invalid training set rather than a new variant.
+
+**A5 moved from hardening to gating.** P6-D2 measured conditioning as HARMFUL by 0.083 JS against the TauREx-NS posterior. P6-D8 measured it as HELPFUL in every cell against prior-draw injection labels. Those are opposite conclusions about the same arms, and the only difference is the evaluator. Which one the manuscript states is therefore decided entirely by whether TauREx-NS is a trustworthy reference, which is exactly what A5's live-point sweep and the pRT cross-check answer. **A6 cannot be written before A5 returns.** The 2026-11-05 ranking put A5 last because it could not kill a claim. It can now pick between two of them, which is a stronger reason to run it than the one originally given for deferring it.
+
+**The same exposure applies to P6-D3**, the translation verdict, which was also measured against the NS anchor alone. Added as V1b. The A1 machinery already exists, so scoring the translated arm against injection labels is a run rather than a build, which is the cheapest way to find out whether that verdict is evaluator-independent.
+
+**Track 2 reassigned with dates, acceptance tests and fallbacks.** Dates are set by the Track 1 critical path, not by preference, since writing starts when A5 returns and anything after 2026-11-30 arrives after the section that would cite it. Required for submission: V7 and V2 by 2026-11-16, V6 and V1b by 2026-11-23. Wanted: V5 verification by 2026-11-16 and result by 2026-11-30, V3 by 2026-11-12. V4 parked, on the reasoning that a half-finished V4 is worth less than a finished V2 and the two cannot both fit. Each item carries a stated fallback, so a miss changes the paper in a recorded way rather than being discovered during writing. V2's fallback is absorption by Track 1 at one to two days. V7's fallback is cutting the CycleGAN result entirely, which reduces framing B to a single pillar.
+
+**What this entry does not do.** It does not reopen the framing. A and C stay closed. Option A was the higher-probability venue and remains the fallback if the required Track 2 set does not land, because A needs nothing from Track 2, but switching to it is a decision to be taken once on stated evidence rather than drifted into by default.
+
+---
+
+### P6-D10 — arXiv v2 deferred to the finished manuscript; repo cleaned from 46G to 34G [Phase 6, 2026-11-08, PLANNING]
+
+**arXiv v2 deferred, deliberately.** Z1 was ranked zeroth priority on 2026-11-05 and again in the 2026-11-08 reordering, on the reasoning that the public v1 abstract still advertises the chi2 301 to 0.06 figure and the OT-calibrated result, both of which this log disproves (P5-D4, P5-D5), and that correcting it costs hours and no compute. **Decision taken 2026-11-08: hold the update until the full manuscript and all v2 changes are complete, then post once.** The reasoning for holding is that v2 then becomes the submission version rather than an interim patch, which avoids two public updates and keeps one coherent artifact. The cost accepted is the window in which v1 asserts two retracted claims. Recorded here because Z1's rank changed for a stated reason rather than by neglect, and because the risk is now a known accepted cost rather than an oversight. Z1's position in `08_work_split_v2.md` updated to match.
+
+**Repo cleaned, 46G to 34G.** All deletions were verified untracked, verified rebuildable or byte-identical duplicates, and verified unreferenced by any script before removal.
+
+- **12G, the bulk of it.** Twenty intermediate `cyclegan_epoch_*.pt` checkpoints in each of six CycleGAN run directories, 103 MB apiece. Written by `train_cyclegan.py:399` as periodic training snapshots, read by nothing, already covered by `.gitignore:56`, which confirms they were never intended to persist. Every directory's `cyclegan_best.pt` was confirmed present before its epoch files were removed, and all seven survive.
+- `WASP_96b_out_of_transit_data.zip`, 6 MB. Byte-identical to `WASP96b_out_of_transit_data.zip` by md5, and the underscored name is not the one `scripts/zip_oot_packages.py` writes, so it was a stray copy.
+- `mirage_abc_rad_data.tgz`, 24 MB. The machine-to-machine transfer archive, already gitignored as rebuildable with tar.
+- `data/inject/_smoke.hdf`, the injection pipeline's smoke-test output.
+- Fifteen `__pycache__` directories, seven `.DS_Store` files, one `.ipynb_checkpoints` directory.
+
+**Left in place, needing a decision rather than a judgement call.** The `snapshots/` directories under the FMPE run dirs hold roughly 3G across 273 files, and unlike everything above they are **tracked**. They are resume points for finished runs, so they are dead weight in the working tree, but removing them writes 273 deletions into history and that is a repository-level decision. Also left: `zenodo_deposit/` and `mirage_zenodo_data_v1.tar.gz`, 30 MB combined, which are kept on provenance grounds since they may be the exact bytes deposited rather than a rebuildable copy.
