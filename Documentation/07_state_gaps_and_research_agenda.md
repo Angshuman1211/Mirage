@@ -171,11 +171,11 @@ of 6 runs, so every baseline carried an uncontrolled risk that the treatment arm
 conditioning "effect" was partly a compute-backend effect wearing the treatment's label. Record the
 device beside every reported model, and never let the backend vary with the arm being compared.
 
-**The multi-target models are clear (P6-D4).** They are also all MPS, so I reran two as CUDA
+**The multi-target models are clear (P6-D4).** They are also all MPS, so I reran all three as CUDA
 controls at `diff`-verified identical configs. K2-18b 1.1822 against the published 1.2141, WASP-96b
-1.2110 against 1.1885. The gaps are an order of magnitude under the degraded case and point in
-opposite directions, which no systematic backend penalty produces. Table 2 and P5-D12 clear on
-training grounds, with the hires control still running.
+1.2110 against 1.1885, hires 1.0665 against 1.0729. No control lands in the degraded band, and the
+two outside the reproduction band point in opposite directions, which no systematic backend penalty
+produces. **Table 2 and P5-D12 clear on training grounds.**
 
 **The revised claim:** noise conditioning gives no measurable benefit on synthetic benchmarks and
 degrades real-data retrieval. This now rests entirely on TauREx-NS being a valid anchor, which
@@ -227,13 +227,30 @@ anything from `ablation_results_v2.json` before 2026-11-01.
 `configs/cyclegan_posterior_cov` differs from `noisecond_cov` in exactly one line, the dataset
 path, so any difference is attributable to translation alone. Result in section 4.3.
 
+**G1b. That result was measured against the nested-sampling anchor only, and P6-D8 showed the
+conditioning ranking flips between the NS anchor and injection labels.** So P6-D3 carries the
+same exposure and is not yet known to be evaluator-independent. **Assigned as V1b, due
+2026-11-23 (P6-D9).** The A1 ladder already exists in `scripts/sbc_report.py`, so this is a run
+and not a build.
+
 **G2. Every headline is a single run.** CLOSED for the conditioning arms: 3 training
 seeds per arm, 12 runs, in `configs/h9_*` (P6-D1, P6-D2). Still open for every other headline,
 and the H9 runs vary `dataset.random_seed`, so their spread covers split plus init plus noise,
 which is wider than training-seed variance alone. Arms stay paired within a seed.
 
-**G3. No non-circular calibration validation.** The highest-priority gap. Closed by Tier 1
-injections (section 6.1), not by synthetic SBC alone.
+**G3. No non-circular calibration validation. CLOSED (P6-D5, P6-D6, P6-D8).** Tier-1
+injections now exist and have been scored: prior-draw labels, real OOT noise structure at the
+published amplitude, SBC ranks plus TARP plus HPD ranks, with the diagnostics themselves
+validated against five known-wrong samplers before use. The answer is that MIRAGE is
+**under-confident** on realistic noise, coverage@68 of 0.72 to 0.85 against a nominal 0.68,
+bell-shaped ranks, negligible skew. That is the opposite sign to what the circular check
+implied. Two thirds of the excess width traces to the sigma scale gap of P6-D7; the remainder
+is intrinsic. Also reverses the conditioning verdict under this evaluator: cov beats nocond in
+every cell, so P6-D2's "conditioning degrades retrieval" is conditional on the NS anchor being
+right. `scripts/sbc_report.py`, `data/sbc/`.
+
+**G4b. rp_rj is the worst-calibrated parameter in every A1 cell** (3.3e-05 to 4.4e-56), and
+the free radius is the headline fix. Say so in the paper rather than meeting it in review.
 
 **G4. NS anchors never shown stable** at 300 live points, and everything cites them.
 
@@ -244,10 +261,21 @@ three-tier data strategy.
 could be shared misspecification. The Ariel Big Challenge cannot fix this: it is TauREx-based
 too. Only a petitRADTRANS or POSEIDON reference settles it (H8).
 
-**G7. CycleGAN domain mismatch** is a hypothesis, untested (H1).
+**G7. CycleGAN domain mismatch** is a hypothesis, untested (H1). **Assigned as V3, due
+2026-11-12 (P6-D9).** One retrain, about 90 minutes, then the hypothesis is either given a
+mechanism or struck from this list rather than left standing.
 
 **G8. One translation architecture.** Cheap principled baselines exist and are missing:
-per-bin affine, quantile mapping, classifier reweighting.
+per-bin affine, quantile mapping, classifier reweighting. **Assigned as V2, due 2026-11-16
+(P6-D9).** Under the locked framing B this is no longer an optional sharpening. The null
+translation result is one of two pillars, and a negative with no comparison class is the first
+thing a reviewer asks about.
+
+**G8b. The CycleGAN real side is one spectrum bootstrap-expanded to 500 samples** with 1
+percent jitter, which the external audit flagged as near-certain overfitting. Under framing B
+that single objection removes a pillar at no cost to the reviewer. Three real reduced spectra
+now exist, so it is correctable. **Assigned as V7, due 2026-11-16 (P6-D9), and it is the last
+CycleGAN run the project does.**
 
 **G9. Amortization is dead and nothing replaces it.** Revivable: a calibrated amortized
 posterior mapping reduction-induced spread across targets is something NS cannot afford

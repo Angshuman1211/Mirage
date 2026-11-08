@@ -67,7 +67,7 @@ Do not carry this framing into v2 unchanged.
 
 ## The framing decision — SETTLED: option B (2026-11-01)
 
-**Chosen: B, sim-to-real negative results, TMLR.** Recorded here because this file previously
+**Chosen: B, sim-to-real negative results, TMLR. Re-confirmed and locked 2026-11-08.** Recorded here because this file previously
 read "settle this first" and that blocked nothing by then. The two load-bearing pillars have
 since been built and both survived rebuilding (P5-D10, P5-D11).
 
@@ -172,6 +172,14 @@ Core method, real data, nested sampling, training, calibration.
     axis labels.
 
 ## Track 2 (Vedanth)
+
+> **Superseded 2026-11-08 by `08_work_split_v2.md`**, which carries the current Track 2
+> assignment with dates, acceptance tests and a stated fallback per item. The list below is
+> kept because it is where items 1 to 3 were first identified. Two things changed after it
+> was written. Item 2, the posterior ablation, is **done** (P6-D3, 2026-11-07, run by Track
+> 1), and P6-D8 added a requirement that did not exist here, which is that the translation
+> verdict be scored against injection labels as well as the nested-sampling anchor, because
+> the conditioning ranking flips between those two evaluators.
 
 CycleGAN and learned domain translation. Scope is smaller than Track 1, but under framing B the
 null translation result becomes one of two load-bearing findings rather than a single paragraph.
