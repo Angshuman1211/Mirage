@@ -69,6 +69,10 @@ wasp96b_dms.yaml
 wasp96b_stage3.yaml
 scratchpad_*.log
 
+# per-run training logs. Kept out of history because the metrics that matter are
+# already in each run dir, and a killed run's log is a diagnostic not a result.
+logs/
+
 # Zenodo data bundle (staging + archive; .zenodo.json IS tracked)
 zenodo_deposit/
 mirage_zenodo_data_v1.tar.gz

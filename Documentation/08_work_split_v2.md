@@ -67,15 +67,22 @@ three-arm table is kept.
 
 ## Angshuman, Track 1: the validation ladder
 
-### A1. Tier 1 injections into real noise, with SBC, TARP and HPD coverage.
+### A1. Tier 1 injections into real noise, with SBC, TARP and HPD coverage. MOSTLY DONE.
+
+**Status 2026-11-08.** Built and run. `mirage/eval/sbc.py` validated against five known-wrong
+samplers before use (P6-D5), `scripts/inject_real_noise.py` builds the sets (P6-D6),
+`scripts/sbc_report.py` scores them. **14 cells complete** across 3 training seeds, 2 arms, 2
+tiers and 3 targets (P6-D8, P6-D11). G3 is closed. The seed repeat P6-D8 owed is discharged,
+and it corrected P6-D8's conditioning claim, see G3b. **The one remaining item is G13 below**,
+which is a build rather than a run.
 
 The core build, and the thing that makes v2 publishable. Draw theta from the prior,
 simulate with TauREx, inject into real OOT-derived noise held out by frame index, run the
 flow, record rank statistics. Labels come from the prior draw, so no transport can game
 them. This is the non-circular calibration check (G3) and the large benchmark (G5) in one.
 
-Build `scripts/sbc.py` (rank histograms per parameter plus a uniformity test) and
-`scripts/inject_real_noise.py`. Read Talts et al. on SBC and Lemos et al. on TARP.
+Read Talts et al. on SBC and Lemos et al. on TARP. The module landed as `mirage/eval/sbc.py`
+rather than `scripts/sbc.py`, to sit beside `mirage/eval/coverage.py`.
 
 **Scope the depth-noise construction honestly.** G13 is now load-bearing: OOT residuals are
 flux noise, and Tier 1 needs depth noise. Do it properly on **WASP-96b**, where we own the
