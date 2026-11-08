@@ -1,4 +1,4 @@
-# Date: 2026-11-07T22:28:25.518346
+# Date: 2026-11-08T18:07:42.544209
 # Python version: 3.11.9 (tags/v3.11.9:de54cf5, Apr  2 2024, 10:12:12) [MSC v.1938 64 bit (AMD64)]
 # Virtual environment: No virtual environment detected
 annotated-types==0.8.0
