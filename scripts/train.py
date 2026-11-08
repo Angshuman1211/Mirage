@@ -11,7 +11,7 @@ instead of calling fm4ar's script directly, e.g.:
 import runpy
 from pathlib import Path
 
-import mirage  # noqa: F401 — registers SpectraEncoder / InjectCorrelatedNoise / abc stats
+import mirage  # noqa: F401 - registers SpectraEncoder / InjectCorrelatedNoise / abc stats
 
 _TRAIN_LOCAL = (
     Path(__file__).resolve().parents[1]
