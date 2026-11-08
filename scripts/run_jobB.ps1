@@ -30,7 +30,12 @@ Set-Location $repo
 
 $env:PYTHONUNBUFFERED = "1"
 $env:PYTHONIOENCODING = "utf-8"
-$env:PYTHONPATH = $repo          # so import mirage works without an editable install
+# Only add the repo root when mirage is not already importable. Setting it
+# unconditionally makes the ./fm4ar clone folder shadow the installed fm4ar as a
+# namespace package (fm4ar.__file__ = None), which crashes fm4ar's git_utils
+# (Path(fm4ar.__file__)) when it writes git-hash.txt at training start.
+& $Python -I -c "import mirage" 2>$null   # -I: don't count the cwd (repo root) as importable
+if ($LASTEXITCODE -ne 0) { $env:PYTHONPATH = $repo }
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 $logdir = Join-Path $repo "logs\jobB"
