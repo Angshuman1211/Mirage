@@ -238,19 +238,32 @@ seeds per arm, 12 runs, in `configs/h9_*` (P6-D1, P6-D2). Still open for every o
 and the H9 runs vary `dataset.random_seed`, so their spread covers split plus init plus noise,
 which is wider than training-seed variance alone. Arms stay paired within a seed.
 
-**G3. No non-circular calibration validation. CLOSED (P6-D5, P6-D6, P6-D8).** Tier-1
+**G3. No non-circular calibration validation. CLOSED (P6-D5, P6-D6, P6-D8, P6-D11).** Tier-1
 injections now exist and have been scored: prior-draw labels, real OOT noise structure at the
 published amplitude, SBC ranks plus TARP plus HPD ranks, with the diagnostics themselves
 validated against five known-wrong samplers before use. The answer is that MIRAGE is
-**under-confident** on realistic noise, coverage@68 of 0.72 to 0.85 against a nominal 0.68,
+**under-confident** on realistic noise, coverage@68 of 0.70 to 0.85 against a nominal 0.68,
 bell-shaped ranks, negligible skew. That is the opposite sign to what the circular check
-implied. Two thirds of the excess width traces to the sigma scale gap of P6-D7; the remainder
-is intrinsic. Also reverses the conditioning verdict under this evaluator: cov beats nocond in
-every cell, so P6-D2's "conditioning degrades retrieval" is conditional on the NS anchor being
-right. `scripts/sbc_report.py`, `data/sbc/`.
+implied. **Robust across 3 training seeds, 2 arms, 2 tiers and 3 targets, 14 cells in all
+(P6-D11).** Most of the excess width traces to the sigma scale gap of P6-D7, which now shows a
+monotone four-point dose-response in the mismatch factor; the remainder is intrinsic.
+`scripts/sbc_report.py`, `data/sbc/`.
 
-**G4b. rp_rj is the worst-calibrated parameter in every A1 cell** (3.3e-05 to 4.4e-56), and
-the free radius is the headline fix. Say so in the paper rather than meeting it in review.
+**G3b. The conditioning verdict is evaluator-dependent, but the two effects are not the same
+size** (P6-D11, correcting P6-D8). Against injection labels cov is mildly better calibrated,
+1.6x the seed spread on Tier 0 and 2.9x on Tier 1, and consistently so only on the joint
+statistics, HPD 6/6 and TARP 5/6, while the marginal SBC minimum favours cov in just 3/6.
+Against the NS anchor cov is worse by 8.4x the seed spread (P6-D2). So the correct sentence is
+"mildly better under injection labels, strongly worse under the NS anchor", not "the ranking
+flips". P6-D8's "cov beats nocond in every cell" was seed 42 alone. A5 still picks which leads.
+
+**G4b. rp_rj is the worst-calibrated parameter in all 14 A1 cells**, WASP-39b at 3 seeds and
+both extra targets, and the free radius is the headline fix. Say so in the paper rather than
+meeting it in review. On WASP-96b the molecular abundances are near-calibrated (logCO2 0.20,
+logCO 0.069, logCH4 0.030) while the radius sits at 4.7e-30, so **the failure is localised to
+the radius rather than smeared across the retrieval**, which is the better version of this
+result. **Quote no p-value magnitudes**: at fixed configuration the rp_rj exponent moves 21.8
+orders across training seeds (P6-D11). The rejection is robust, the number is not.
 
 **G4. NS anchors never shown stable** at 300 live points, and everything cites them.
 

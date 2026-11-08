@@ -945,3 +945,36 @@ This does NOT contradict P6-D2, it bounds it. P6-D2 measured JS divergence to th
 - Fifteen `__pycache__` directories, seven `.DS_Store` files, one `.ipynb_checkpoints` directory.
 
 **Left in place, needing a decision rather than a judgement call.** The `snapshots/` directories under the FMPE run dirs hold roughly 3G across 273 files, and unlike everything above they are **tracked**. They are resume points for finished runs, so they are dead weight in the working tree, but removing them writes 273 deletions into history and that is a repository-level decision. Also left: `zenodo_deposit/` and `mirage_zenodo_data_v1.tar.gz`, 30 MB combined, which are kept on provenance grounds since they may be the exact bytes deposited rather than a rebuildable copy.
+
+---
+
+### P6-D11 — A1 across three training seeds and three targets: under-confidence and the sigma driver hold, the conditioning reversal is much weaker than one seed suggested [Phase 6, 2026-11-08, MAJOR — partly a correction to P6-D8]
+
+**What ran.** Ten further cells at n = 200, 199 samples, 20 bins. Eight are the seed repeat P6-D8 said was owed, 2 arms x 2 tiers x seeds 43 and 44, all within the CUDA `h9_*` family so no device confound exists inside the comparison. Two are the extra targets, WASP-96b and K2-18b on their own Tier-1 sets using their per-target models. Those two models are MPS-trained and were cleared at backend-shift level by P6-D4 (+0.032 and -0.022), which is the caveat they carry. No cell failed.
+
+**Correction to P6-D8.** That entry stated that conditioning beats no-conditioning "in every cell". That was seed 42 alone, and seed 42 is the most favourable of the three. With all three seeds in, the ranking is directionally consistent on the joint statistics and inconsistent on the marginal one. HPD favours cov in 6 of 6 cells, TARP deviation in 5 of 6, coverage@68 in 5 of 6, and **SBC minimum p in only 3 of 6**. On Tier 0 at seed 43, cov is four orders of magnitude worse on SBC, 2.3e-10 against 1.6e-06. The sentence "against ground-truth labels, conditioning improves calibration" is too strong and is replaced by the one below.
+
+**The effect sizes are not symmetric, and that is the finding.** Measured as distance of coverage@68 from the nominal 0.68, conditioning's injection-label advantage is 1.6x the training-seed spread on Tier 0 and 2.9x on Tier 1. P6-D2's real-data conditioning *harm*, measured as JS to the TauREx-NS posterior, was 8.4x the seed spread. So these two results are not equal and opposite. **Conditioning is mildly better calibrated against injection labels and strongly worse against the nested-sampling anchor.** Both statements can hold simultaneously, and the paper should carry both with their effect sizes attached rather than presenting a clean reversal. A5 still decides which one leads, so its promotion to gating in P6-D9 stands, but the stakes are lower than P6-D8 implied because the injection-label effect is weak.
+
+**Under-confidence survives everything.** All 12 WASP-39b cells plus both extra targets give coverage@68 above the nominal 0.68, spanning 0.704 to 0.851, with maximum absolute rank skew 0.116. Bell-shaped throughout. This is the G3 answer and it is robust to training seed, to arm, to tier and to target. Nothing in this entry weakens it.
+
+**The sigma driver survives, and now has a dose-response across targets.** All six Tier-1 to Tier-0 pairs improve, by 0.09 to 0.10 in coverage. Adding the two targets, whose real published error bars sit at different distances from the training floor, gives four points ordered by mismatch factor:
+
+| set | sigma below the 0.05 training floor | coverage@68 |
+|---|---|---|
+| WASP-39b Tier 0, rescaled into range | 1x | 0.742 |
+| WASP-96b Tier 1 | 2.4x | 0.783 |
+| K2-18b Tier 1 | 2.7x | 0.796 |
+| WASP-39b Tier 1 | 24x | 0.834 |
+
+Monotone in the mismatch. The Tier-0 against Tier-1 pair is the controlled version of this, same model and same noise realizations with only the scale changed, and it points the same way, so the cross-target rows corroborate rather than carry the claim. Three different models and three different wavelength grids are involved, so they cannot do more than corroborate. P6-D7's prediction that WASP-96b would show the weakest mismatch was correct.
+
+**rp_rj is the worst-calibrated parameter in 12 of 12 WASP-39b cells and in both extra targets.** G4b is unconditional. On WASP-96b the molecular abundances are close to calibrated, logCO2 0.20, logCO 0.069, logCH4 0.030, while the radius sits at 4.7e-30, so the degeneracy is **isolated to the radius rather than smeared across the retrieval**. That is a better result for the paper than a diffuse failure, because it localises the problem to the parameter whose free treatment is already the headline fix. K2-18b differs, with logH2O at 3.4e-08 as its second-worst parameter, which is consistent with 19 percent of its bins still being white-filled across 3.78 to 5.17 micron where the water and methane features sit (P6-D6).
+
+**Methodological warning, and it applies to what P6-D8 already wrote down.** The rp_rj p-value is wildly seed-unstable. Tier 1 no-conditioning gives 4.4e-56, 3.0e-39 and 2.6e-34 across seeds 42, 43 and 44, a spread of **21.8 orders of magnitude** at fixed configuration. The rejection is robust, the exponent is not. P6-D8 quoted 4.4e-56 as though it were a measurement. **No SBC p-value magnitude from these runs belongs in the manuscript.** Report the direction, the fact of rejection, and the coverage numbers, which are stable to roughly 0.01 to 0.016 across seeds.
+
+**Caveats to carry.** The "x the seed spread" ratios rest on 3 seeds per arm, so the spread estimate itself is weak and the ratios should be read as order-of-magnitude rather than measured. This is the same convention P6-D2 used, so the comparison between 1.6x/2.9x and 8.4x is at least internally consistent. n = 200 per cell remains 10 per SBC bin. The two extra targets use MPS-trained per-target models, cleared only at backend-shift level by P6-D4, and have no cov twin, so they test target and sigma-scale variation and not conditioning. K2-18b is 81 percent real noise with the gap concentrated where its water features are.
+
+**Artefacts.** Fourteen result files under `data/sbc/`, named `{tier}__{arm}.npz`.
+
+**Next.** The seed repeat is discharged and the extra targets are done, so A1's remaining item is G13, the WASP-96b depth-noise construction, which is a build rather than a run. The retraining experiment that P6-D7 and P6-D8 motivate is unchanged and is now better specified, since the four-point dose-response above predicts what closing the sigma gap should buy.
