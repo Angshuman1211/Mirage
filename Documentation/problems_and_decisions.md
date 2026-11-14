@@ -978,3 +978,50 @@ Monotone in the mismatch. The Tier-0 against Tier-1 pair is the controlled versi
 **Artefacts.** Fourteen result files under `data/sbc/`, named `{tier}__{arm}.npz`.
 
 **Next.** The seed repeat is discharged and the extra targets are done, so A1's remaining item is G13, the WASP-96b depth-noise construction, which is a build rather than a run. The retraining experiment that P6-D7 and P6-D8 motivate is unchanged and is now better specified, since the four-point dose-response above predicts what closing the sigma gap should buy.
+
+---
+
+### P6-D12 — Job B completed on CUDA: the published conditioning ordering is entirely a device artifact [Phase 6, 2026-11-08, MAJOR]
+
+**What ran.** The six sigma arms (`h9_{rad,abc}_sigma_s{42,43,44}`) trained to completion on the RTX 5070, finishing 20:10. All six trained normally, train gain +0.555 to +0.727. This closes Z2's remainder and, more importantly, it supplies the matched-hardware reference that the two published sigma runs never had.
+
+**Device matching, which is the precondition for reading any of this.** All eighteen H9 arms declare `device: "cuda"` and all record `torch==2.11.0+cu128` in their run-start `requirements.txt`, cov included. P6-D4's confound (cov on CPU, sigma and nocond on MPS) therefore does not touch the H9 family. The three-group comparison below is device-matched and same-commit, `git-hash.txt` `c05841c` across arms.
+
+**Convergence, which is the other precondition.** Patience-50 early stopping fired on seventeen of the eighteen arms, so each best checkpoint sits 50 epochs before its run ended rather than at a budget wall. The exception, `h9_rad_cov_s42`, was capped 18 epochs after its best; I traced it to epoch 225 with the learning rate annealed to 2.3e-06 and its minimum still at epoch 182, so its 1.1209 is final. "Indistinguishable" below is a statement about converged runs, not about runs stopped early at the same point on a shared curve.
+
+**Published against CUDA, now complete for all six noise-conditioning runs.** Gap is published minus the three-seed CUDA mean, so positive means the published model is the worse one. Bands are P6-D4's.
+
+| published arm | device | published | CUDA mean (3 seeds) | gap | band |
+|---|---|---|---|---|---|
+| `noisecond_rad_cov` | cpu | 1.1475 | 1.1389 | +0.009 | reproduces |
+| `noisecond_rad_nocond` | mps | 1.2477 | 1.1278 | +0.120 | degraded |
+| `noisecond_rad_sigma` | mps | 1.3729 | 1.1330 | **+0.240** | degraded |
+| `noisecond_cov` | cpu | 1.3893 | 1.3911 | -0.002 | reproduces |
+| `noisecond_nocond` | mps | 1.9231 | 1.3915 | **+0.532** | catastrophic |
+| `noisecond_sigma` | mps | 1.3873 | 1.3958 | -0.008 | reproduces |
+
+Both CPU runs reproduce. Three of the four MPS runs land off-reference, two in the degraded band and one catastrophic. P6-D4 inferred the device effect from three cases and had to leave the sigma pair unreferenced. There are now six, and the pattern is unchanged, so the inference was right and is now measured rather than argued.
+
+**The three groups, matched hardware, three seeds each.**
+
+| group | radius (`abc_rad`) | abc |
+|---|---|---|
+| cov | 1.1389 +/- 0.0191 | 1.3911 +/- 0.0062 |
+| nocond | 1.1278 +/- 0.0045 | 1.3915 +/- 0.0011 |
+| sigma | 1.1330 +/- 0.0143 | 1.3958 +/- 0.0075 |
+
+In both families the spread of the three group means is smaller than the largest within-group seed spread, 0.0111 against 0.0191 on radius and 0.0047 against 0.0075 on abc. On held-out in-distribution simulation loss the three conditioning schemes are not distinguishable.
+
+**The finding.** The published radius ordering was cov 1.1475, nocond 1.2477, sigma 1.3729, a clean monotone dose-response reading "conditioning helps and richer conditioning helps more", spread 0.2254. On matched hardware the ordering is nocond 1.1278, sigma 1.1330, cov 1.1389, spread 0.0111. The spread collapses by a factor of 20 and the sign reverses. The published ordering is in rank order of device quality, cov on CPU first and the two MPS arms behind it. The abc family is the same story harder, published spread 0.5358 against CUDA 0.0047, a factor of 114, because the abc nocond arm was the catastrophic MPS run. **The apparent dose-response in the published conditioning comparison is explained by which device each arm happened to run on, in both families.**
+
+**Scope limit, stated so it is not over-read later.** This is the training objective evaluated on held-out *simulated* data in distribution. It is not calibration and it is not sim-to-real. A null here says the conditioning schemes fit the simulator equally well, not that they behave equally on real spectra. Coverage and JS-to-NS are not yet evaluated on the six CUDA sigma checkpoints, so the sigma row of the Phase-4 table is unpopulated rather than filled with a null.
+
+**"Drop the sigma column" is confirmed, not overturned.** [04_track1_phase4.md] made that call pending `h9_rad_sigma_s42`. The confirmation arrived and it convicts the published run, +0.240 into the degraded band, so the stored 0.132 / 0/7 / 0.365 row stays out. What is new is the option that did not exist yesterday, which is to rebuild that row from trustworthy CUDA models instead of deleting it. Recommend rebuilding it, because a three-way null on matched hardware is a stronger object for framing B than a two-column table with a hole in it, and because the models already exist so the cost is an evaluation pass and not a retrain.
+
+**What this does to the Z1 correction count, which is nothing.** It does not add a fifth correction. Correction three, the conditioning result, already covers the withdrawal. This supplies its mechanism and converts it from asserted to measured, which is what makes it safe to state in print.
+
+**Verification.** Nothing in this entry rests on a number measured elsewhere. The six sigma `model__best.pt` files were force-added and pulled the same day, so I ran one extraction over all eighteen arms locally. Every value the other machine reported reproduces exactly: sigma best vals 1.1255 / 1.1496 / 1.1241 on radius and 1.4032 / 1.3882 / 1.3959 on abc, all six best-epoch counts (217 / 113 / 200 and 82 / 96 / 69), and all six train gains. Computed at full float precision rather than from the rounded report, rad sigma is 1.1330 +/- 0.0143 against the 1.133 +/- 0.014 reported, which changes no gap, band or verdict. I also verified independently all four cov and nocond group means and spreads, all six published best vals and their declared devices, and the patience behaviour of every arm. The indistinguishability test is computed, not asserted.
+
+**Why the stopping epochs coincide across arms, recorded before a reviewer asks.** The schedule is ReduceLROnPlateau at factor 0.5 on top of patience-50 early stopping, and the best checkpoint lands one epoch after an LR halving, for example the drop at 216 giving best at 217. At matched seed the shared data order drives plateau detection to fire at the same epochs, so arms with different architectures stop identically, 217/267 for both rad sigma and rad nocond at s42 and 200/250 for all three rad arms at s44. The LR trajectories are not identical between those arms, and at s44 the three sit at different learning rates while bottoming at the same epoch, so this is shared-seed dynamics and not a fixed milestone schedule. P6-D4 already noted the 69-to-217 epoch range at identical config and this is the mechanism behind it.
+
+**Next.** Evaluate coverage and JS-to-NS on the six CUDA sigma checkpoints to repopulate the Phase-4 sigma row. Regenerate fig5 from `configs/h9_*` once that lands.

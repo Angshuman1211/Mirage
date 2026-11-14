@@ -43,9 +43,20 @@ still won on JS-to-NS, 0.358 against 0.430. The bias worked against this table's
 conclusion held anyway, so the negative result is stronger than it looked, not weaker. P6-D2's
 independent CUDA remeasurement agrees, +0.083 against the published +0.076.
 
-**Drop the sigma column.** `noisecond_rad_sigma` (1.3729) sits about 0.24 above the radius CUDA
-band, worse than nocond's degradation, so its 0.132 / 0/7 / 0.365 row is not usable. The nocond and
-cov columns already carry the conclusion. Pending confirmation from `h9_rad_sigma_s42`.
+**Drop the sigma column. CONFIRMED 2026-11-08 (P6-D12).** `noisecond_rad_sigma` (1.3729) sits
+0.240 above the radius CUDA band, worse than nocond's degradation, so its 0.132 / 0/7 / 0.365 row
+is not usable. The nocond and cov columns already carry the conclusion. The confirmation this was
+pending, `h9_rad_sigma_s42`, arrived with all six sigma arms at 3 seeds on CUDA, mean 1.1330
++/- 0.0143, verified locally from the checkpoints, and convicts the published run.
+
+**But the column can now be rebuilt rather than deleted.** Yesterday there was no trustworthy
+sigma model, so dropping the column was the only option. There are now six. On matched hardware
+the three groups are indistinguishable on held-out in-distribution loss, spread of group means
+0.0111 against a largest within-group seed spread of 0.0191, and the published monotone ordering
+turns out to be in rank order of device quality rather than conditioning richness (P6-D12).
+Repopulating this row from `h9_*_sigma_s4?` costs an evaluation pass and no retraining, and a
+three-way null on matched hardware is a stronger object for framing B than a table with a hole in
+it. Coverage and JS-to-NS on those checkpoints are the remaining work.
 
 **Framing (superseded by P6-D2: the synthetic validation is withdrawn, so only the real-data half
 of this framing stands).** noise-conditioning is validated on **synthetic ABC (Phase 2)**; on real JWST the

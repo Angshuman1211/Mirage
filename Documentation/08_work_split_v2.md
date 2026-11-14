@@ -296,7 +296,14 @@ Revised 2026-11-08.
 1. **Z1** (arXiv v2) **last, not first** (P6-D10). It carries **four** corrections: the chi2
    floor mismatch, the OT calibration, the conditioning result, and the P6-D8 reversal of that
    conditioning result under injection labels. Posted once, with the finished manuscript.
-2. ~~**Z2 / H9**~~ DONE 2026-11-07. See above. The sigma retrains are the only remainder.
+   P6-D12 adds no fifth correction. It supplies the third one's mechanism, which is what
+   makes it safe to state in print rather than merely withdraw.
+2. ~~**Z2 / H9**~~ **FULLY DONE 2026-11-08 (P6-D12).** The six sigma retrains finished on
+   CUDA, 3 seeds per family, so all eighteen H9 arms are device-matched and the published
+   conditioning ordering is now shown to be a device artifact in both families, spread
+   collapsing 20x on radius and 114x on abc and reversing sign. No GPU work remains on H9.
+   The remainder is an evaluation pass, coverage and JS-to-NS on the six sigma checkpoints,
+   to repopulate the Phase-4 sigma row, plus regenerating fig5 from `configs/h9_*`.
 3. ~~**A1** first result~~ DONE 2026-11-08 (P6-D8). Continuing with the s43 and s44 seed
    repeat, which gates the conditioning ranking, and the two extra targets.
 4. ~~**V1**~~ DONE 2026-11-07 (P6-D3), by Track 1.
