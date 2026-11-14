@@ -257,6 +257,21 @@ Against the NS anchor cov is worse by 8.4x the seed spread (P6-D2). So the corre
 "mildly better under injection labels, strongly worse under the NS anchor", not "the ranking
 flips". P6-D8's "cov beats nocond in every cell" was seed 42 alone. A5 still picks which leads.
 
+**G3c. A third evaluator says no effect at all, and it explains where the original effect came
+from** (P6-D12, 2026-11-08). On held-out in-distribution simulation loss, matched hardware and
+3 seeds per arm, the three conditioning schemes are indistinguishable. The spread of the group
+means is smaller than the largest within-group seed spread in both families, 0.0111 against 0.0191
+on radius and 0.0047 against 0.0075 on abc. The published ordering that motivated the whole
+conditioning claim, cov 1.1475 then nocond 1.2477 then sigma 1.3729, collapses from a spread of
+0.2254 to 0.0111 and reverses sign, and the published order is rank order of device quality, CPU
+first and the two MPS arms behind. **So the dose-response was a device artifact in both families.**
+Read this as narrowly as it is stated. In-distribution simulator fit is neither calibration nor
+sim-to-real, so a null here does not settle G3b, which is about calibration under two different
+label sources. What it does settle is that there was never a synthetic-loss effect for conditioning
+to be good at, which removes the last reason to treat the Phase-2 result as a real finding that
+later work failed to transfer. Coverage and JS-to-NS on the six CUDA sigma checkpoints are
+unevaluated, so the Phase-4 sigma row is empty rather than null.
+
 **G4b. rp_rj is the worst-calibrated parameter in all 14 A1 cells**, WASP-39b at 3 seeds and
 both extra targets, and the free radius is the headline fix. Say so in the paper rather than
 meeting it in review. On WASP-96b the molecular abundances are near-calibrated (logCO2 0.20,
