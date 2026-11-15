@@ -116,11 +116,35 @@ converts the weight collapse into a stated property of the error budget.
 
 ### A5. NS anchor stability and H8. (1 to 2 weeks wall clock, heaviest item)
 
-Live-point sweep 300 / 600 / 1000 on WASP-96b, the cheapest target, reporting whether
-posterior widths and the radius interval move (G4). Then one petitRADTRANS or POSEIDON
-reference at matched physics (H8). If TauREx-NS and pRT-NS disagree by more than the
-flow-to-NS gap, the reference is not a reference, and that is a finding. **Deprioritised
-below H9**: it hardens numbers, it cannot kill a claim.
+**Part 1 DONE 2026-11-15 (P6-D18). G4 closes, and it took 50 minutes, not weeks.** Swept
+150 / 300 / 600 / 1000 live points on WASP-96b (the published anchor was at 150, not the 300
+this line assumed). Radius 68% width ratio 1.04x, radius mean drift 0.0002 RJ, logZ drift
+0.213, no parameter width moving over 8 percent. The anchor is stable. The "1 to 2 weeks"
+estimate below belongs entirely to part 2.
+
+**Part 2 DONE 2026-11-15 (P6-D19). A5 IS COMPLETE AND A6 IS UNBLOCKED.** petitRADTRANS at
+matched physics, matched line lists (matched on the DOI inside each opacity file, not the
+filename) and matched binning, integrating TauREx's own atmosphere so only the radiative
+transfer differs. The two codes agree to a 12.9 ppm offset and an 8.9 ppm shape residual
+against a 192.6 ppm error bar, 0.067 and 0.046 of one error bar, and 0.00055 RJ in radius
+against a 0.0057 RJ anchor width. A line-list-only control moves the spectrum 4.9x more on
+shape, so the null is a measurement and not a blind spot. The full pRT nested-sampling retrieval
+then confirmed it directly, in 23.7 minutes: mean JS between the two codes' posteriors 0.0116 nats
+against a flow-to-NS JS of 0.352 to 0.428, every parameter inside 0.29 sigma. The reference is a
+reference.
+
+Both halves of A5 are therefore negative results, and the "1 to 2 weeks wall clock, heaviest
+item" in the heading was wrong by about two orders of magnitude: part 1 took 50 minutes, part 2
+about a working day including rebuilding petitRADTRANS from source because the installed copy
+could not run (see P6-D19, x86_64 gfortran on an arm64 Mac).
+
+Historical note, kept because it explains why this was promoted. **Promoted to gating,
+2026-11-08 (P6-D9).** The line that stood here, "deprioritised below H9, it hardens numbers, it
+cannot kill a claim", was withdrawn then. P6-D2 and P6-D8 reach opposite conclusions about
+conditioning, and only the trustworthiness of the NS anchor decides which one the paper states,
+so A5 picked between two claims rather than hardening either. That is now settled in favour of
+the anchor being trustworthy, so the conditioning question is decided on the evidence rather
+than left open.
 
 ### A6. Manuscript, inference side.
 
@@ -302,16 +326,26 @@ Revised 2026-11-08.
    CUDA, 3 seeds per family, so all eighteen H9 arms are device-matched and the published
    conditioning ordering is now shown to be a device artifact in both families, spread
    collapsing 20x on radius and 114x on abc and reversing sign. No GPU work remains on H9.
-   The remainder is an evaluation pass, coverage and JS-to-NS on the six sigma checkpoints,
-   to repopulate the Phase-4 sigma row, plus regenerating fig5 from `configs/h9_*`.
-3. ~~**A1** first result~~ DONE 2026-11-08 (P6-D8). Continuing with the s43 and s44 seed
-   repeat, which gates the conditioning ranking, and the two extra targets.
+   The evaluation pass is also **DONE 2026-11-14 (P6-D17)**: six A1 cells on the radius sigma
+   arms populate the Phase-4 sigma row, and against injection labels the three arms fall in
+   conditioning order on every calibration statistic, which P6-D12's in-distribution null
+   cannot see. **Z2 is fully closed.** Only regenerating fig5 from `configs/h9_*` remains.
+3. ~~**A1**~~ **14 of 15 cells DONE 2026-11-08 (P6-D8, P6-D11).** The s43 and s44 seed repeat
+   and both extra targets are discharged, and the repeat corrected P6-D8's conditioning claim
+   (G3b). The sole remainder is **G13**, the WASP-96b depth-noise construction, which is a
+   build and not a run.
 4. ~~**V1**~~ DONE 2026-11-07 (P6-D3), by Track 1.
 5. **A5 is now gating, not hardening.** P6-D2 and P6-D8 reach opposite conclusions about
    conditioning, and which one the paper states is decided entirely by whether TauREx-NS is a
-   trustworthy reference. **A6 cannot be written before A5 returns.** This is a change from the
+   trustworthy reference. **A6 UNBLOCKED 2026-11-15 (P6-D19): A5 returned and the anchor is
+   trustworthy, on both the sampler side (part 1) and the forward-model side (part 2).** The
+   line that follows is the history of why it was blocked, not a live constraint. This is a
+   change from the
    2026-11-05 ordering, where A5 sat below H9 on the grounds that it could not kill a claim.
-   It can now pick between two of them.
+   It can now pick between two of them. **Part 1 landed 2026-11-15 (P6-D18) and does not open
+   the gate**: it rules out "the anchor is under-converged noise" but not "the forward model is
+   misspecified", and only H8 tests the latter. A sampler can converge tightly onto a wrong
+   model. The gate is H8 alone now.
 6. **V7**, **V2** by 2026-11-16. **V6**, **V1b** by 2026-11-23. **V5** verification by
    2026-11-16, result by 2026-11-30.
 7. **A2** once the A1 labels are consolidated. **A3**, **A4** and the sigma-range retrain as
@@ -362,6 +396,10 @@ card, bounded by CPU dataloading rather than VRAM, which cuts wall clock further
 100 OOT frames per sample destabilised MPS, but the no-cond arm sets `n_oot_frames: 0` and may run
 fine. The CycleGAN runs went 23x faster on MPS. If that holds, part of H9 is free.
 
-**Separately, A5 is CPU-bound, not GPU-bound.** TauREx nested sampling needs roughly 498 single-core
-hours for WASP-39b (Exoformer, A&A 2026). A many-core CPU instance is the right rental there, not a
-GPU, and a 32 to 64 core box should bring it inside a day for a few tens of dollars.
+**Separately, A5 is CPU-bound, not GPU-bound. The rental advice below is WITHDRAWN (2026-11-15).**
+The 498 single-core hours is a real published number (Exoformer, A&A 709 A17, 2026, Sect. 5.2 and
+Table 3) but it is the cost of THEIR uniform-prior WASP-39b retrieval on one core, and it was wrong
+to carry it over as ours. A5 part 1 measured the real figure: four WASP-96b nested-sampling runs at
+150 to 1000 live points, in parallel on this laptop, finished in 50 minutes wall clock. H8's
+petitRADTRANS retrieval is the slower one at roughly 2.4 hours, still on the laptop. Nothing here
+needs renting.

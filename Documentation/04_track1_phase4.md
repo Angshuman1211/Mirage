@@ -54,9 +54,18 @@ sigma model, so dropping the column was the only option. There are now six. On m
 the three groups are indistinguishable on held-out in-distribution loss, spread of group means
 0.0111 against a largest within-group seed spread of 0.0191, and the published monotone ordering
 turns out to be in rank order of device quality rather than conditioning richness (P6-D12).
-Repopulating this row from `h9_*_sigma_s4?` costs an evaluation pass and no retraining, and a
-three-way null on matched hardware is a stronger object for framing B than a table with a hole in
-it. Coverage and JS-to-NS on those checkpoints are the remaining work.
+Repopulating this row from `h9_*_sigma_s4?` costs an evaluation pass and no retraining.
+
+**REBUILT 2026-11-14 (P6-D17), and it is not the null I expected.** Six A1 cells on the three
+radius sigma arms, both tiers, same flags as the existing twelve. Against injection labels the
+three arms fall in conditioning order on every calibration statistic measured. Coverage at 68,
+nominal 0.68, is cov 0.719, sigma 0.728, nocond 0.742 on tier 0 and cov 0.803, sigma 0.811,
+nocond 0.834 on tier 1. TARP deviation gives the same order, 0.117 / 0.125 / 0.172 and
+0.145 / 0.158 / 0.160. Monotone in all four comparisons. So the sigma column belongs in the
+table after all, as the middle point that makes the other two a dose-response rather than two
+values in an order that could be seed noise. Write the ordering, not any single gap, because
+the cov-to-sigma difference sits inside the seed spread. The row that stays out is the stored
+MPS one, not the column.
 
 **Framing (superseded by P6-D2: the synthetic validation is withdrawn, so only the real-data half
 of this framing stands).** noise-conditioning is validated on **synthetic ABC (Phase 2)**; on real JWST the
