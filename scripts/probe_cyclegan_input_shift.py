@@ -1,25 +1,40 @@
 """
-Phase 3 Track 2 — CycleGAN ablation: quantify IS-efficiency contribution from
-CycleGAN translation versus domain randomisation alone.
+ROBUSTNESS PROBE: how do flows trained on UNTRANSLATED simulations respond when
+their INPUT is pushed through the CycleGAN generator at evaluation time?
 
-Evaluates four conditions on held-out ABC test planets:
-  1. **Baseline** (clean):         No augmentation (Phase 1 transformer_abc)
-  2. **Domain randomisation only**: Phase 2 noisecond_cov (correlated noise injection)
-  3. **CycleGAN only**:             Translate with G_AB, no noise augmentation
-  4. **CycleGAN + randomisation**:  G_AB translation + correlated noise injection
+Renamed from `run_cyclegan_ablation.py` (G15, V6, 2026-11-15). The old name and
+docstring presented this as "the CycleGAN ablation", and it is not. No flow here
+is ever trained on translated data, so it cannot say whether learned translation
+helps or hurts inference. It only says whether a sim-trained flow tolerates
+shifted input, which is a different question.
 
-Compares IS-efficiency, coverage@68/95, and log-density at truth.
+    DO NOT CITE THIS AS THE TRANSLATION RESULT.
 
-Expected result (per D4 decision): domain randomisation is sufficient;
-CycleGAN provides marginal or no additional benefit on this problem.
+The posterior-level translation result is `configs/cyclegan_posterior_cov`
+(P6-D3): a flow TRAINED on translated spectra, differing from `noisecond_cov`
+in one config line, evaluated on the shared ABC test set. That is the only
+experiment that isolates translation as the cause.
 
-Usage:
-    python scripts/run_cyclegan_ablation.py [--n-planets 50] [--n-samples 1000]
+Two further reasons the numbers below are not evidence about translation:
+  - `configs/cyclegan/cyclegan_best.pt` is the LEGACY generator, trained against
+    a real domain that was one spectrum bootstrapped to 500 near-copies, in
+    stellar-flux units and reversed wavelength order (P5-D11). The probe still
+    loads it by default because that is what it was written against.
+  - inputs are evaluated on abc_test, which is simulation, so "real" never
+    enters the probe at all.
 
-Requires:
-  - configs/transformer_abc/model__best.pt (baseline)
-  - configs/noisecond_cov/model__best.pt (domain random)
-  - configs/cyclegan/cyclegan_best.pt (CycleGAN)
+Conditions, all on held-out ABC test planets:
+  1. baseline          transformer_abc, clean input
+  2. domain_random     noisecond_cov, correlated noise injected
+  3. cyclegan_only     transformer_abc, input translated by G_AB
+  4. cyclegan+random   noisecond_cov, input translated then noise injected
+
+Reports coverage@68/95, normalised width and log-density at truth.
+
+    python scripts/probe_cyclegan_input_shift.py [--n-planets 50] [--n-samples 1000]
+
+Requires configs/transformer_abc/model__best.pt, configs/noisecond_cov/model__best.pt
+and configs/cyclegan/cyclegan_best.pt.
 """
 
 from __future__ import annotations
@@ -118,6 +133,10 @@ def logdensity_at_truth(model, theta_scaler, ctx_single: dict, theta_true) -> fl
 
 
 def main(n_planets: int = 50, n_samples: int = 1000, test_seed: int = 5678) -> None:
+    print("=" * 80)
+    print("  ROBUSTNESS PROBE, not the translation result. No flow below was trained")
+    print("  on translated data. Cite configs/cyclegan_posterior_cov (P6-D3) instead.")
+    print("=" * 80)
     print("Loading models ...")
     models = {}
     scalers = {}
@@ -236,7 +255,7 @@ def main(n_planets: int = 50, n_samples: int = 1000, test_seed: int = 5678) -> N
         return float(np.mean(w))
 
     print(f"\n{'─'*80}")
-    print(f"  Phase 3 Track 2 — CycleGAN Ablation (n={len(truths)} planets)")
+    print(f"  CycleGAN INPUT-SHIFT PROBE (n={len(truths)} planets, sim-trained flows)")
     print(f"  {'condition':<18} {'cov@68%':>8} {'cov@95%':>8} {'width68↓':>10} {'logdens↑':>10}")
     print(f"  {'-'*66}")
     for name in order:
@@ -267,10 +286,11 @@ def main(n_planets: int = 50, n_samples: int = 1000, test_seed: int = 5678) -> N
         print(f"    Positive in {(delta > 0).sum()}/{len(delta)} planets")
 
     print(f"\n{'─'*80}")
-    print("  Interpretation:")
-    print("    • If domain_random ≈ cyclegan+random: domain randomisation is sufficient")
-    print("    • If cyclegan_only < baseline: translation degrades calibration")
-    print("    • If cyclegan+random >> domain_random: translation adds value")
+    print("  Interpretation (probe only):")
+    print("    • cyclegan_only vs baseline: how much a sim-trained flow degrades when")
+    print("      its input is translated. Says nothing about training on translation.")
+    print("    • cyclegan+random vs domain_random: the same, for the noise-trained arm.")
+    print("    • For whether translation helps inference, see P6-D3.")
     print(f"{'─'*80}\n")
 
 
