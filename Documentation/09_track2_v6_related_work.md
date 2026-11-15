@@ -21,7 +21,8 @@ we do not claim to be first. Gebhard et al. (2025) introduced flow-matching post
 importance sampling is used to verify and correct the network's output. FASTER (Lueber et al.
 2025) used neural networks for retrieval and Bayesian model comparison on the NIRSpec PRISM
 spectrum of WASP-39b. Exoformer (Pagliaro et al. 2026) used a transformer to produce informative
-priors for TauREx nested sampling, applied to WASP-39b and WASP-17b. These works establish that
+priors for TauREx nested sampling, applied to WASP-39b PRISM and WASP-17b SOSS and speeding the
+retrievals by a factor of 3 to 8. These works establish that
 amortized retrieval *runs* on real data. They do not ask what happens to its calibration when the
 noise model is the thing that is wrong, which is our question.
 
@@ -110,7 +111,7 @@ any noise-model intervention, then noise-model adaptation is the smaller lever.
 | Jang 2026 | J. Jang, E. Jeong, K. S. Choi, H. Kim, "Information-Preserving Domain Transfer with Unlabeled Data in Misspecified Simulation-Based Inference" (SPIN), arXiv:2605.05652 (2026), **preprint, not peer reviewed** | arXiv |
 | Kelly 2024 | R. P. Kelly, D. J. Nott, D. T. Frazier, D. J. Warne, C. Drovandi, "Misspecification-Robust Sequential Neural Likelihood for Simulation-Based Inference", TMLR (2024), arXiv:2301.13368 | arXiv + TMLR listing |
 | Lueber 2025 | A. Lueber, K. Karchev, C. Fisher, M. Heim, R. Trotta, K. Heng, "Near-instantaneous Atmospheric Retrievals and Model Comparison with FASTER", ApJL 984, L32 (2025), arXiv:2502.18045 | arXiv |
-| Pagliaro 2026 | L. Pagliaro, T. Zingales, G. Piotto, I. Giovannini, G. Mantovan, "Exoformer: Accelerating Bayesian atmospheric retrievals with transformer neural networks", arXiv:2603.27623 (2026) | arXiv |
+| Pagliaro 2026 | L. Pagliaro, T. Zingales, G. Piotto, I. Giovannini, G. Mantovan, "Exoformer: Accelerating Bayesian atmospheric retrievals with transformer neural networks", A&A 709, A17 (2026), doi:10.1051/0004-6361/202558264, arXiv:2603.27623 | arXiv full text (Sect. 5.2, Table 3) + A&A listing |
 | Roy-Perez 2026 | Roy-Perez, Pérez-Hoyos, Barrado-Izagirre, Chen-Chen, "The effect of JWST/NIRSpec data reduction on the retrieval of WASP-39b atmospheric properties", A&A 707, A297 (2026), arXiv:2602.06722 | arXiv + A&A |
 | Schleich 2025 | S. Schleich, S. Boro Saikia, Q. Changeat, M. Güdel, A. Voigt, I. Waldmann, "Knobs and dials of retrieving JWST transmission spectra. II. Impacts of pipeline-level differences on retrieval posteriors", A&A 704, A223 (2025), arXiv:2511.05652 | arXiv + A&A |
 | Swierc 2024 | P. Swierc, M. Tamargo-Arizmendi, A. Ćiprijanović, B. D. Nord, "Domain-Adaptive Neural Posterior Estimation for Strong Gravitational Lens Analysis", arXiv:2410.16347 (2024), FERMILAB-CONF-24-0444 | arXiv abstract + HTML full text |
@@ -137,11 +138,14 @@ are not given on the arXiv listing, so take them from the A&A page.
    shift does not obviously act on the latent our headline fix frees. Section 3 of `07_...md` is
    otherwise correct.
 3. **Exoformer is a prior generator for TauREx nested sampling, not an amortized posterior.**
-   `07_...md` lists it beside FASTER as "ran on real WASP-39b PRISM". The abstract confirms the
-   targets but not the instrument, and its method makes it a nested-sampling accelerator. Do not
-   cite it as amortized SBI on real data. Separately, the "~498 single-core hours for WASP-39b
-   (Exoformer, A&A 2026)" figure in the compute note and in G9 was **not** found in the abstract.
-   It needs a page number from the full text, or it should be removed.
+   `07_...md` lists it beside FASTER as "ran on real WASP-39b PRISM". The targets and instruments
+   are right (Sect. 5.2: WASP-39b NIRSpec PRISM, WASP-17b NIRISS SOSS), but its method makes it a
+   nested-sampling accelerator. Do not cite it as amortized SBI on real data. The "~498
+   single-core hours" figure is **sourced**: Sect. 5.2 and Table 3 give "TauREx required ≈498 h
+   (WASP-39b) ... with uniform priors ... on a single CPU core". An earlier version of this note
+   called it unsourced, because only the abstract had been checked. That was wrong, and P6-D19
+   independently found the same section. It is the cost of Exoformer's own uniform-prior
+   retrieval, not of ours, so it may be cited as their number but not as our compute budget.
 4. **Robust SNL's published title** has "for Simulation-Based Inference" appended, and its TMLR
    author list has five names. **RNPE's fifth author is Schmon.**
 5. **Swierc et al. align latent features with MMD.** This is confirmed from the full text, so the
