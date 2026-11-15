@@ -4,7 +4,7 @@
 > was one spectrum bootstrapped to 500 near-copies (P5-D11), and that loader is
 > retired (V7, 2026-11-15): `train_cyclegan.py` now refuses to run without
 > `--real-domain`. The commands below were updated to match. For the current
-> translation work see `Documentation/10_track2_v2_v7_results.md`.
+> translation work see P6-D13 to P6-D16 in `Documentation/problems_and_decisions.md`.
 
 **Objective**: Quantify IS-efficiency contribution from CycleGAN translation vs domain randomisation alone.
 

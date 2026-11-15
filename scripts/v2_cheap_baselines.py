@@ -43,7 +43,7 @@ which is why the reproduction check exists.
 
 What this does NOT do: the inferential half of V2 (posterior JS to the NS anchor)
 needs one flow trained per arm on the mapped training set, plus the anchor, which
-lives outside this repo. See Documentation/10_track2_v2_v7_results.md.
+lives outside this repo. See P6-D13 in Documentation/problems_and_decisions.md.
 """
 from __future__ import annotations
 
