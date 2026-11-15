@@ -1025,3 +1025,132 @@ In both families the spread of the three group means is smaller than the largest
 **Why the stopping epochs coincide across arms, recorded before a reviewer asks.** The schedule is ReduceLROnPlateau at factor 0.5 on top of patience-50 early stopping, and the best checkpoint lands one epoch after an LR halving, for example the drop at 216 giving best at 217. At matched seed the shared data order drives plateau detection to fire at the same epochs, so arms with different architectures stop identically, 217/267 for both rad sigma and rad nocond at s42 and 200/250 for all three rad arms at s44. The LR trajectories are not identical between those arms, and at s44 the three sit at different learning rates while bottoming at the same epoch, so this is shared-seed dynamics and not a fixed milestone schedule. P6-D4 already noted the 69-to-217 epoch range at identical config and this is the mechanism behind it.
 
 **Next.** Evaluate coverage and JS-to-NS on the six CUDA sigma checkpoints to repopulate the Phase-4 sigma row. Regenerate fig5 from `configs/h9_*` once that lands.
+
+---
+
+> **P6-D13 to P6-D16 are RESERVED for Track 2, not missing.** Track 2 delivered them on 2026-11-15 (V6 related work, V2 baselines, V5 verification, V7/V3 built, V1b scoped), but that branch was withdrawn before merge and is being redelivered. The Track 1 entries below were renumbered from D13/D14 to D17/D18 to leave those four IDs free, so the redelivery slots in at its original numbering and nothing here has to move again. If Track 2 renumbers instead, close this gap.
+
+---
+
+### P6-D17 — The sigma row is populated: a real conditioning effect exists, but only on calibration [Phase 6, 2026-11-14, MAJOR]
+
+**What ran.** Six A1 cells, `h9_rad_sigma_s{42,43,44}` against `wasp39_tier0_indist` and `wasp39_tier1`, same flags as the existing twelve (n=200, samples=199, bins=20). CPU only, `sbc_report.py` pins `device="cpu"`, about 10 minutes per cell. Only the radius arms are eligible because `PARAM` in that script is the 7-parameter radius model, so the three abc sigma arms have no injection ladder and the Phase-4 sigma row is radius-only, matching the cov and nocond rows. A1 on WASP-39b is now **18 cells**, 3 arms x 3 seeds x 2 tiers, and 20 counting the two extra targets.
+
+**The sigma row, and the three-group calibration comparison.** Coverage at 68 is the mean over the seven parameters, nominal 0.68, so closer to 0.68 is better calibrated. TARP deviation is lower-is-better.
+
+| tier | group | cov@68 | sd | TARP dev |
+|---|---|---|---|---|
+| tier 0 | cov | 0.719 | 0.016 | 0.117 |
+| tier 0 | **sigma** | **0.728** | **0.010** | **0.125** |
+| tier 0 | nocond | 0.742 | 0.011 | 0.172 |
+| tier 1 | cov | 0.803 | 0.003 | 0.145 |
+| tier 1 | **sigma** | **0.811** | **0.016** | **0.158** |
+| tier 1 | nocond | 0.834 | 0.014 | 0.160 |
+
+**The finding, and it is the opposite of P6-D12's.** The ordering is cov then sigma then nocond, monotone in conditioning richness, and it holds in **all four** comparisons, two tiers crossed with two independent metrics. P6-D12 found no conditioning effect whatever on held-out in-distribution simulation loss. So a real conditioning effect does exist, it is invisible to the training objective, and it shows up only when the arm is scored against independent injection labels. That is a far more interesting sentence than either half alone, and it is only available because the sigma arm interpolates. Two points can be noise in either order. Three points in the predicted order, four times over, is a dose-response.
+
+**Effect sizes, stated against seed spread so this is not over-read.** The cov-to-nocond gap is 0.023 on tier 0 and 0.031 on tier 1, which is about 1.7x and 3.1x the pooled seed spread, consistent with the 1.6x and 2.9x P6-D11 reported on a partly different statistic. The **cov-to-sigma gap is 0.009 and 0.008, inside the seed spread in both tiers**, so sigma is not individually distinguishable from cov. The evidence here is the consistency of the ordering, not the size of any single gap. Do not write that sigma beats nocond, write that the three arms fall in conditioning order on every calibration statistic measured.
+
+**The scale-mismatch penalty is arm-independent, which is new.** Going from tier 0 to tier 1, a 24x drop below the training perturbation range, costs +0.084 on cov, +0.083 on sigma and +0.092 on nocond. Three arms, one penalty of about +0.085. P6-D7's scale mismatch is therefore a property of the setup and not of any conditioning scheme, which removes a confound from that story and makes the planned sigma-range retrain the right fix for all three arms rather than a patch for one.
+
+**Two earlier findings strengthen without change of sign.** Under-confidence survives every cell: cov@68 runs 0.704 to 0.851 against nominal 0.68 across all 18 WASP-39b cells, max |skew| 0.116, so G3 holds at 3 arms. And **rp_rj is the worst-calibrated parameter in 18 of 18 cells**, up from 12 of 12, so G4b's localisation to the radius now holds across all three conditioning schemes.
+
+**What this does to G3b, which is to raise the stakes on A5.** There are now three evaluators and they do not agree. In-distribution simulation loss says no effect (P6-D12). Injection labels say cov then sigma then nocond, monotone (here). The NS anchor says cov is worse by 8.4x the seed spread (P6-D2). The sigma arm's interpolation is new evidence that the injection-label ordering is signal rather than seed noise, which makes the contradiction with the NS anchor sharper rather than softer. **A5 is still the only thing that picks between them, and it now has more to overturn.**
+
+**Verification.** Every number above is computed from the twenty `data/sbc/*.npz` files locally, in one pass, including the twelve cov and nocond cells recomputed from their stored arrays rather than copied from P6-D8 or P6-D11. No SBC p-value magnitudes are quoted as measurements, per G4b, because at fixed configuration the rp_rj exponent moves 21.8 orders across training seeds. The per-cell table is reproducible from `data/sbc/wasp39_*.npz`.
+
+**Next.** Regenerate fig5 from `configs/h9_*`, which now has a third column. A1 is complete except G13.
+
+---
+
+### P6-D18 — A5 part 1: the NS anchor is stable, G4 closes, and the anchor itself sits 1 sigma below the literature radius [Phase 6, 2026-11-15, MAJOR]
+
+**What ran.** Four TauREx nested-sampling retrievals on the real self-reduced WASP-96b NIRISS spectrum (90 bins, 7 params with the radius floated), identical except for live points: 150, 300, 600, 1000. Run in parallel, 2 threads each, 50 minutes wall clock total. `scripts/run_a5_livesweep.sh`, scored by `scripts/a5_livesweep_table.py`.
+
+**Cost correction.** `08_work_split_v2.md` estimates A5 at "1 to 2 weeks wall clock, heaviest item". The live-point sweep measures at about 0.157 s per iteration with iterations ~ 13.8 x live points, so the whole sweep is **under an hour in parallel**. That estimate was carrying the petitRADTRANS half, not the sweep. A5 part 1 was never the expensive part.
+
+**The published anchor uses 150 live points, not 300.** G4 is written as "never shown stable at 300 live points", but `data/real_ess/ns_wasp96.log` line 1 reads 150. So the anchor was weaker than the gap statement assumed, and the sweep is anchored at 150 and re-run under current code rather than compared across versions.
+
+**Result: the anchor is stable.** Over a 6.7x change in live points:
+
+| live | ESS | logZ | chi2/N | radius 68% | width |
+|---|---|---|---|---|---|
+| 150 | 682 | 627.396 | 0.791 | [1.1945, 1.2001] | 0.0056 |
+| 300 | 1394 | 627.372 | 0.793 | [1.1943, 1.2001] | 0.0058 |
+| 600 | 2840 | 627.183 | 0.793 | [1.1941, 1.1999] | 0.0058 |
+| 1000 | 4675 | 627.362 | 0.791 | [1.1942, 1.1999] | 0.0057 |
+
+Radius 68% width ratio 1.04x. Radius mean drift 0.0002 RJ. logZ drift 0.213. chi2/N flat at 0.791 to 0.793. Per-parameter 68% widths move by at most 8 percent across all seven parameters, the largest being log_H2O at 1.08x and the temperature width flat at 1.01x. ESS scales linearly with live points as it should. **Nothing that the paper quotes from this anchor is a function of the sampler setting, and G4 closes on a measurement rather than an argument.**
+
+**The containment test is not decidable, and that is the second finding.** The literature radius 1.20 RJ sits inside the anchor's 68% interval at 150 and 300 live points and outside it at 600 and 1000. The apparent flip is 0.0002 RJ. A 400-draw multinomial bootstrap of the weighted posterior at its own ESS gives a standard error on the 84th percentile of 0.00016 / 0.00011 / 0.00009 / 0.00008 RJ, and a 95 percent interval on that percentile that **contains 1.20 at every one of the four settings**. The spread in the 84th percentile across the sweep, 0.00017 RJ, is one to two times its own Monte Carlo error. So the flip is estimator noise on a knife edge, not a live-point trend.
+
+The stable way to say it: the anchor's radius posterior is **1.1971 RJ with a 68% width of 0.0057**, so the literature value lies **1.0 sigma above the posterior mean**. That statement is live-point independent and bootstrap stable, and it is the form this comparison should take from now on. A binary "is the truth inside the interval" test on a value sitting at the interval edge returns whichever answer the sampler noise happens to give.
+
+**This is about the anchor, not about P5-D7, and I initially conflated the two.** P5-D7's WASP-96b interval is [1.1924, 1.2012] at ESS 7.5, which is MIRAGE's importance-sampled posterior. The interval measured here is the NS anchor's own, at ESS 682 to 4675. They are different objects and P5-D7 is unaffected: its interval is wider, 0.0088 against 0.0057, and contains 1.20 with room. Recording the conflation because the two intervals are numerically close enough to be mistaken for each other and both are quoted as "the WASP-96b radius interval".
+
+**Worth noting for the manuscript.** The anchor's 68% interval is *narrower* than MIRAGE's despite a hundredfold ESS advantage, and it is 0.5 percent wide on a 90-bin transmission spectrum with the stellar radius held fixed. A radius constraint that tight from transmission data alone is close to the depth measurement propagated through a fixed Rs, so the anchor's radius is not independent information about the planet in the way the comparison implicitly assumes.
+
+**An open question I did not resolve.** The literature value compared against, 1.20, is also `WASP96["rp_rj"]` in `scripts/taurex_forward.py` line 164, the forward model's own geometry constant. Whether the radius comparison is an independent check or a consistency check of the reduction depends on how the published 1.20 was derived against how the self-reduced depths were. Flagging rather than concluding, since the circularity of a self-referential check is what sank the Sim2Science submission.
+
+**What this does NOT do.** It does not resolve A5's gating role. P6-D2 and P6-D17 disagree about conditioning and the gate is whether TauREx-NS is a trustworthy reference. Stability is necessary and not sufficient: a sampler can converge tightly onto a misspecified forward model. Part 1 closes the door marked "the anchor is just under-converged noise". The door marked "the forward model is wrong" is H8, the petitRADTRANS cross-check, and it is still open. **A6 remains blocked.**
+
+**One bug fixed on the way.** `scripts/taurex_retrieve.py` printed "NS on real WASP-39b" unconditionally, so every WASP-96b and K2-18b run has misreported its own target in its log since August. Now prints the planet being fitted. Output filenames were deliberately **not** changed: `fig_multitarget.py`, `multitarget_table.py`, `real_compare.py`, `ot_calibrate.py`, `transfer_table.py`, `benchmark_table.py`, `make_figures.py` and `run_robustness.sh` all hardcode `wasp39b_ns_posterior_*.npz`, so the sweep disambiguates by tag and the published run at `wasp39b_ns_posterior_wasp96.npz` is untouched.
+
+**Next.** H8. petitRADTRANS 3.3.3 is already installed in the `mirage` env and its opacity data is not downloaded, about 0.5 GB from the MPDL Keeper. pRT resolves the same isotopologues already held as ExoMolOP R=15000 tables in `data/opacity_hifi` (1H2-16O, 12C-16O2, 12C-1H4, 12C-16O, 14N-1H3), so the TauREx side of H8 should run with `--hifi` rather than the published ExoTransmit R~1000 lists. Otherwise a disagreement between the two codes is unattributable between radiative transfer and line lists, and H8's whole finding depends on that attribution.
+
+---
+
+### P6-D19 — H8 answered: TauREx and petitRADTRANS agree to 0.07 sigma, so the forward model is not the problem, G6 closes and A6 unblocks [Phase 6, 2026-11-15, MAJOR]
+
+**Problem.** P6-D18 closed the door marked "the anchor is just under-converged noise". The door marked "the forward model is wrong" stayed open, and it is the one that matters, because a sampler can converge tightly onto a misspecified model. G6 states it directly: the simulator and the reference both run TauREx, so part of the measured transfer failure could be shared misspecification that neither side can see.
+
+**What was run.** An independent radiative transfer code, petitRADTRANS 3.3.3, on the real WASP-96b spectrum, and the key design choice is that **the atmosphere was not recomputed**. `h8_dump_atmosphere.py` dumps TauREx's own pressure, temperature, per-gas volume mixing ratio and mean-molecular-weight profiles plus the reference radius/gravity/pressure triple, and `h8_prt_forward.py` integrates through those exact arrays. The two codes' mean molecular weights agree to 1.1e-7 relative. Binning is TauREx's own `FluxBinner` applied to both sides. Line lists are matched to `data/opacity_hifi`. So the only thing left to differ is the radiative transfer and the opacity treatment, which is the thing under test. Evaluated at the A5 posterior weighted mean plus 20 posterior draws.
+
+**Result, at the posterior mean, against a 192.6 ppm median error bar.**
+
+| quantity | value | in error bars |
+|---|---|---|
+| constant depth offset | -12.9 ppm | 0.067 |
+| shape residual after removing that offset (rms) | 8.9 ppm | 0.046 |
+| equivalent radius shift | -0.00055 RJ | 0.10x the A5 68% width |
+| chi2/N, TauREx vs pRT | 0.763 vs 0.744 | - |
+
+Across the 20 draws the offset stays in -14.5 to -8.4 ppm and the radius shift in -0.00062 to -0.00036 RJ, same sign throughout. **The two numbers are reported separately on purpose and are not interchangeable.** The NS retrieval floats `planet_radius`, so a constant offset between codes is absorbed by the radius: it cannot touch the abundances, and it biases the radius directly. The shape residual is the part a floating radius cannot absorb, so it is the only part that could bias temperature and composition. Quoting a single combined rms would conflate the two and overstate the damage.
+
+**Decision. The TauREx forward model is not misspecified at a level that can explain anything MIRAGE sees.** The code-choice radius shift is 0.10x the anchor's own 68% width and 0.19x the 1 sigma gap to the literature 1.20 RJ, so it cannot move P5-D7 either. G6 closes. **A6 unblocks.** A5 is complete: part 1 ruled out the sampler, part 2 rules out the forward model.
+
+**The control, and why `--hifi` was load-bearing rather than pedantic.** "The codes agree" is worthless if the measurement could not have seen a disagreement, so `h8_control.py` runs the identical binning and metrics on two TauREx spectra differing ONLY in opacity data, ExoMolOP R=15000 against the published ExoTransmit R~1000.
+
+| swap | offset | shape rms | dRp |
+|---|---|---|---|
+| radiative transfer code (H8) | -12.9 ppm | 8.9 ppm | -0.00055 RJ |
+| line lists, same code (control) | -33.6 ppm | 44.0 ppm | -0.00143 RJ |
+| ratio | 2.6x | **4.9x** | 2.6x |
+
+The pipeline detects a 44 ppm shape change from opacity data while reporting 8.9 ppm for the code, so the agreement is real and not a blind spot. It also settles the attribution question: had H8 been run against the published ExoTransmit lists, the line-list difference would have swamped the code difference by about five times on shape, and H8 would have reported a forward-model disagreement that was actually opacity data. Note that even the line-list swap sits at 0.23x the error bar, so at WASP-96b's precision neither choice is detectable.
+
+**Two bugs found, both by checks that existed to catch exactly this.**
+1. `12C-16O__HITEMP` looks like the right CO match for TauREx's `12C-16O__Li2015` (same isotopologue, and HITEMP's CO is widely described as Li et al. 2015). It is not. That table carries DOI `10.1016/j.jqsrt.2010.05.001`, HITEMP 2010, whose CO came from Goorvitch 1994. `C-O-NatAbund__Chubb` carries `10.1088/0067-0049/216/1/15`, byte-identical to the DOI inside the TauREx file. **Opacity matching is done on the DOI stored inside each file, never on the filename.** The cost is that the pRT side is natural abundance where TauREx is the main isotopologue alone.
+2. `h8_prt_forward.py` initially passed a single scalar reference gravity taken from draw 0 to all 21 draws, but TauREx recomputes gravity from the mass and each draw's own radius. The `h8_prt_retrieve.py` self-test caught it at 8.09 ppm, the same size as the shape residual being measured. Fixed to per-draw gravity; the posterior-mean row was unaffected (it is draw 0) and the across-draw ranges tightened slightly.
+
+**Environment finding, and it is not a side note.** The petitRADTRANS 3.3.3 already present in `mirage` imports but **cannot run**: all five f2py extensions have an undefined `_f2pyinit<module>_` symbol. Cause: the only gfortran on this machine is **x86_64** (`/usr/local/bin/gfortran`, target `x86_64-apple-darwin24`, Intel Homebrew prefix) while the Mac and its Python are arm64, so the Fortran objects were built for the wrong architecture and the arm64 link dropped them silently. pRT ships source-only on PyPI and is not on conda-forge, so there is no prebuilt binary. Rebuilt in a dedicated `mirage-prt` env with conda-forge's arm64 gfortran (`scripts/setup_prt_env.sh`), following the existing `mirage-taurex` split. The opacity download is **1.6 GB, not the ~0.5 GB estimated in P6-D18**.
+
+**What this does NOT establish.** Both codes were forced onto the same isothermal, cloud-free, constant-with-altitude atmosphere, because that is what makes the radiative transfer separable. So H8 closes "the radiative transfer is wrong", which is narrower than "the forward model is wrong". If real WASP-96b has a cloud deck or a vertical temperature gradient, both codes are wrong together and this test is blind to it by construction. That is a different question and P3-D8 probed the temperature-profile half of it. The 8.9 ppm also still bundles radiative transfer proper with the native-resolution difference, correlated-k at R=1000 against cross-section sampling at R=15000; both are opacity treatment rather than physics and both are far below the error bar, so the conclusion does not depend on separating them.
+
+**Confirmed by the full second retrieval.** G6/H8 is phrased in the gap list as "if TauREx-NS and pRT-NS disagree", so `h8_prt_retrieve.py` ran the second retrieval end to end: nestle, method multi, dlogz 0.5, 150 live points matching the published anchor, same priors, same error floor, same binning via a weight matrix verified against `FluxBinner` to 7e-12 ppm. It took **23.7 minutes**, not the 2.4 hours estimated from 287 ms per forward model, because nestle converged in 1992 iterations.
+
+| param | TauREx-NS | pRT-NS | diff/sigma | JS (nats) |
+|---|---|---|---|---|
+| planet_radius | 1.1972 | 1.1966 | 0.24 | 0.0012 |
+| T | 682.86 | 677.51 | 0.06 | 0.0042 |
+| log_H2O | -3.5950 | -3.5685 | 0.06 | 0.0031 |
+| log_CO2 | -5.0813 | -4.9794 | 0.07 | 0.0299 |
+| log_CH4 | -7.5919 | -7.6087 | 0.02 | 0.0130 |
+| log_CO | -6.0536 | -6.1587 | 0.06 | 0.0117 |
+| log_NH3 | -7.1147 | -7.4237 | 0.29 | 0.0178 |
+
+**Mean JS between the two codes' posteriors is 0.0116 nats against a published flow-to-NS JS of 0.352 to 0.428, so the code gap is 0.033x the flow gap, about thirty times smaller.** Every parameter agrees inside 0.29 sigma and most inside 0.1. chi2/N is 0.791 for TauREx and 0.706 for pRT. The decision criterion in the gap list was "disagree by more than the flow-to-NS gap", and the answer is not close.
+
+**The radius shift was predicted before the retrieval ran.** `h8_compare.py` put the forward-model-only radius offset at -0.00055 RJ; the independent retrieval returned -0.00067 RJ. That is an out-of-sample confirmation that the forward-model comparison was measuring the right thing, and it is worth keeping as evidence that the cheap test can stand in for the expensive one in future.
+
+**It also re-proves G4c on an independent code.** The literature 1.20 RJ sits inside the TauREx 68% interval [1.1945, 1.2001] and OUTSIDE the pRT one [1.1933, 1.1996], a flip driven by 0.0004 RJ. In sigma the two codes agree exactly: 1.0 sigma above the mean for TauREx, 1.1 for pRT. This is the second independent demonstration that a binary containment test on this value returns whatever the noise gives, and that radius agreement must be stated in sigma. Do not report the containment flip as a disagreement between the codes, because it is not one.

@@ -91,9 +91,16 @@ misspecification, so "identifiability, not fidelity" does not survive as written
 
 **Running SBI on real JWST spectra is not new.** Gebhard et al. (A&A 2025) introduced FMPE
 with importance sampling and noted IS "identifies model failures via low efficiencies",
-which is essentially our ESS observation. Exoformer (arXiv 2603.27623) ran on real WASP-39b
-PRISM and WASP-17b SOSS. FASTER (arXiv 2502.18045) used neural ratio estimation on real
-WASP-39b PRISM and reproduced the NS model ranking.
+which is essentially our ESS observation. FASTER (arXiv 2502.18045) used neural ratio
+estimation on real WASP-39b PRISM and reproduced the NS model ranking.
+
+**Exoformer is not one of these, and the earlier note here was wrong to list it as one**
+(corrected 2026-11-15, flagged by Track 2 and checked against the paper). Exoformer
+(arXiv 2603.27623, A&A 709 A17, 2026) trains a transformer to produce *informative prior
+distributions* which then replace uniform priors inside a conventional nested-sampling
+retrieval, for a 3 to 8 times speedup. It does not do amortized posterior inference, so it
+is not evidence that "SBI on real JWST spectra is not new". It did run on real WASP-39b
+NIRSpec PRISM and WASP-17b NIRISS SOSS, which is the part that was right.
 
 **Robust-SBI is crowded with methods and thin on real-noise tests.** RNPE (Ward 2022),
 RSNL (Kelly, TMLR 2024), MMD-regularised robust statistics (Huang, NeurIPS 2023),
@@ -102,8 +109,16 @@ flow-matching robust SBI, preconditioned RNPE. Most validate on toy simulators.
 
 **Pipeline shifts are studied, but with nested sampling, not SBI.** "Knobs and dials II"
 (Schleich et al., A&A 704 A223, 2025) ran TauREx on three WASP-39b reductions. Roy-Perez
-et al. (A&A 707 A297, 2026) compared six PRISM reductions and found abundances deviate up
-to 2 dex. Schmidt et al. ran 250+ retrievals on K2-18b.
+et al. (A&A 707 A297, 2026) compared six PRISM reductions and found that temperature,
+molecular abundances and cloud opacity all shift with the reduction, **often by more than
+one order of magnitude**. Schmidt et al. ran 250+ retrievals on K2-18b.
+
+Two corrections to what this section used to say about Roy-Perez (2026-11-15): they used
+**MultiNest with Planetary Spectrum Generator forward models, not TauREx**, so they are an
+independent-code data point rather than another TauREx one; and the effect size is "often
+exceed one order of magnitude", which is a statement about the typical case. The old
+phrasing, "deviate up to 2 dex", quoted a bound instead and so understated the result while
+appearing to overstate it.
 
 **The niche actually open**, and it is narrow:
 1. noise-model sim-to-real for transmission spectra, evaluated **inferentially** as well as
@@ -270,24 +285,67 @@ sim-to-real, so a null here does not settle G3b, which is about calibration unde
 label sources. What it does settle is that there was never a synthetic-loss effect for conditioning
 to be good at, which removes the last reason to treat the Phase-2 result as a real finding that
 later work failed to transfer. Coverage and JS-to-NS on the six CUDA sigma checkpoints are
-unevaluated, so the Phase-4 sigma row is empty rather than null.
+now evaluated and the answer is **not** a null, see G3d. The Phase-4 sigma row is populated.
 
-**G4b. rp_rj is the worst-calibrated parameter in all 14 A1 cells**, WASP-39b at 3 seeds and
-both extra targets, and the free radius is the headline fix. Say so in the paper rather than
-meeting it in review. On WASP-96b the molecular abundances are near-calibrated (logCO2 0.20,
-logCO 0.069, logCH4 0.030) while the radius sits at 4.7e-30, so **the failure is localised to
-the radius rather than smeared across the retrieval**, which is the better version of this
-result. **Quote no p-value magnitudes**: at fixed configuration the rp_rj exponent moves 21.8
-orders across training seeds (P6-D11). The rejection is robust, the number is not.
+**G3d. Against injection labels the three arms fall in conditioning order, on every
+calibration statistic measured** (P6-D17, 2026-11-14). Coverage at 68 is cov 0.719, sigma 0.728,
+nocond 0.742 on tier 0 and cov 0.803, sigma 0.811, nocond 0.834 on tier 1. TARP deviation gives
+the same order, 0.117 / 0.125 / 0.172 and 0.145 / 0.158 / 0.160. That is monotone in conditioning
+richness in all four comparisons, two tiers crossed with two independent metrics. **The effect is
+invisible to the training objective** (G3c), so conditioning does something that in-distribution
+simulator fit cannot see. Effect sizes against seed spread: the cov-to-nocond gap is about 1.7x
+and 3.1x, while the **cov-to-sigma gap sits inside the seed spread in both tiers**, so sigma is
+not individually separable from cov. Write "the three arms fall in conditioning order on every
+calibration statistic", never "sigma beats nocond". The value of the sigma arm is that it
+interpolates, which is what turns two points that could be noise into a dose-response, and that
+makes the disagreement with the NS anchor (G3b) sharper rather than softer. A5 still decides.
 
-**G4. NS anchors never shown stable** at 300 live points, and everything cites them.
+**G3e. The scale-mismatch penalty is arm-independent** (P6-D17). Tier 0 to tier 1, a 24x drop
+below the training perturbation range, costs +0.084 on cov, +0.083 on sigma and +0.092 on nocond.
+One penalty of about +0.085 across three conditioning schemes, so P6-D7's scale mismatch is a
+property of the setup rather than of any embedding. This removes a confound and makes the
+sigma-range retrain the right fix for all three arms instead of a patch for one.
+
+**G4b. rp_rj is the worst-calibrated parameter in all 20 A1 cells**, WASP-39b at 3 arms x 3
+seeds x 2 tiers (18 of 18, P6-D17) and both extra targets, and the free radius is the headline
+fix. Say so in the paper rather than meeting it in review. On WASP-96b the molecular abundances
+are near-calibrated (logCO2 0.20, logCO 0.069, logCH4 0.030) while the radius sits at 4.7e-30,
+so **the failure is localised to the radius rather than smeared across the retrieval**, which
+is the better version of this result. **Quote no p-value magnitudes**: at fixed configuration
+the rp_rj exponent moves 21.8 orders across training seeds (P6-D11). The rejection is robust,
+the number is not.
+
+**G4. CLOSED 2026-11-15 (P6-D18). The NS anchor is stable.** The gap said "never shown
+stable at 300 live points, and everything cites them". Two corrections. The published WASP-96b
+anchor ran at **150** live points, not 300. And across a 6.7x sweep, 150 / 300 / 600 / 1000, the
+radius 68% width moves 1.04x, the radius mean 0.0002 RJ, logZ 0.213, chi2/N not at all, and no
+parameter's 68% width moves more than 8 percent. Nothing the paper quotes from this anchor is a
+function of the sampler setting.
+
+**G4c. State radius agreement in sigma, never as interval containment** (P6-D18). The anchor's
+radius posterior is 1.1971 RJ with a 68% width of 0.0057, so the literature 1.20 lies 1.0 sigma
+above the mean and therefore sits on the interval edge. A binary containment test on an edge value
+returned "inside" at 150 and 300 live points and "outside" at 600 and 1000, a flip of 0.0002 RJ,
+while a bootstrap of the 84th percentile puts 1.20 inside its 95 percent interval at **all four**
+settings. The flip is estimator noise. Report the sigma distance, which is stable, and note that
+this concerns the **anchor's** interval and not P5-D7's MIRAGE interval, which is wider and
+unaffected.
 
 **G5. N=3, and the NIRISS pair is data-starved** (56 and 96 frames). Addressed by the
 three-tier data strategy.
 
-**G6. One simulator.** Sim and reference share TauREx, so part of the "transfer failure"
-could be shared misspecification. The Ariel Big Challenge cannot fix this: it is TauREx-based
-too. Only a petitRADTRANS or POSEIDON reference settles it (H8).
+**G6. CLOSED 2026-11-15 (P6-D19). The shared simulator is not hiding a misspecification.**
+The gap said sim and reference both run TauREx, so part of the "transfer failure" could be
+shared error neither side can see, and that only an independent code settles it. petitRADTRANS
+now has. Integrated through TauREx's own pressure, temperature, mixing-ratio and MMW profiles
+(so the atmosphere is identical, not merely similar) with line lists matched on the DOI inside
+each file, the two codes differ by a 12.9 ppm constant offset and an 8.9 ppm shape residual
+against a 192.6 ppm error bar, which is 0.067 and 0.046 of one error bar. In radius that is
+0.00055 RJ, a tenth of the anchor's own 68% width. A control swapping only the line lists moves
+the spectrum 4.9x more on shape, so the measurement is sensitive and the agreement is real.
+**Scope: this closes "the radiative transfer is wrong", not "the atmospheric model is wrong".**
+Both codes were held to the same isothermal cloud-free column, so a shared cloud or
+temperature-gradient error is invisible to this test by construction.
 
 **G7. CycleGAN domain mismatch** is a hypothesis, untested (H1). **Assigned as V3, due
 2026-11-12 (P6-D9).** One retrain, about 90 minutes, then the hypothesis is either given a
@@ -307,7 +365,10 @@ CycleGAN run the project does.**
 
 **G9. Amortization is dead and nothing replaces it.** Revivable: a calibrated amortized
 posterior mapping reduction-induced spread across targets is something NS cannot afford
-(TauREx needs ~498 single-core hours for WASP-39b).
+(TauREx needs ~498 single-core hours for WASP-39b: Exoformer, A&A 709 A17 2026, Sect. 5.2
+and Table 3, for a uniform-prior retrieval on one CPU core. That is THEIR cost, not ours,
+and A5 part 1 measured ours at 50 minutes wall clock for four WASP-96b runs in parallel on
+this laptop, so do not reuse 498 h as a MIRAGE compute estimate.)
 
 **G10. Radius containment is tight, not comfortable** (0.93 and 0.87 of half-width).
 
@@ -396,8 +457,14 @@ misspecification detectors.
 one visit exceeds the JS change from any noise-model intervention, the field is tuning the wrong
 thing.
 
-**H8. The reference shares the misspecification.** If TauREx-NS and pRT-NS disagree by more than
-the flow-to-NS gap, the reference is not a reference, and that is a finding (closes G6).
+**H8. ANSWERED 2026-11-15 (P6-D19), negative.** The hypothesis was that if TauREx-NS and pRT-NS
+disagree by more than the flow-to-NS gap, the reference is not a reference. They do not disagree:
+the forward models differ by 0.067 of an error bar on offset and 0.046 on shape. The reference
+survives, G6 closes, and A6 unblocks. The full pRT nested-sampling retrieval then confirmed it
+end to end: mean JS between the two codes' posteriors is 0.0116 nats against a flow-to-NS JS of
+0.352 to 0.428, so the code gap is 0.033x the flow gap. Every parameter agrees inside 0.29 sigma.
+The radius shift it returned, -0.00067 RJ, matches the -0.00055 RJ the forward-model test
+predicted before it ran.
 
 **H1. CycleGAN domain mismatch.** Run **once** as a mechanism check for G7, then retire CycleGAN
 as a method and keep it as a negative control. A single bootstrapped spectrum was never a domain.
