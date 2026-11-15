@@ -35,6 +35,7 @@ nothing on either side.
 
     python scripts/build_real_domain.py --target wasp39 --grid abc --n 2000
     python scripts/build_real_domain.py --target wasp96 --grid abcniriss
+    python scripts/build_real_domain.py --target all --grid abcniriss     # V7
 """
 import argparse
 import sys
@@ -123,6 +124,68 @@ def rebin_spectrum(df, edges):
 
 
 def main(target, grid, n, seed, suffix=""):
+    if target == "all":
+        return main_pooled(grid, n, seed, suffix)
+    r = build(target, grid, n, seed)
+    out = OUT / f"real_domain_{target}_{grid}{suffix}.npz"
+    # `samples` is already gap-filled and finite, so loaders just load it.
+    # `covered` stays for bookkeeping: which bins carry real measurements.
+    # `abc_cols` indexes the STORED-order ABC grid, letting the trainer slice
+    # domain A to exactly these wavelengths. Its absence is how downstream
+    # scripts detect a file with no ABC correspondence and refuse, rather than
+    # silently pairing mismatched bins.
+    np.savez(out, samples=r["samples"].astype(np.float32), wlen=r["wlen"],
+             covered=r["covered"], depth=r["depth"], frame_ids=r["frame_ids"],
+             target=target, grid=grid, abc_cols=r["abc_cols"], source=r["source"])
+    report(r, target, out)
+
+
+def main_pooled(grid, n, seed, suffix=""):
+    """V7: one real domain from ALL THREE reduced spectra, on the shared grid.
+
+    Only the 26-bin `abcniriss` grid is shared by PRISM and NIRISS, so the pooled
+    domain lives there. Every frame of every target is kept, and `sample_target`
+    labels each row so the trainer can balance draws across targets
+    (--balance-targets) instead of letting WASP-39b's 3,241 frames swamp
+    WASP-96b's 56 and K2-18b's 96.
+
+    PER-TARGET LEVEL. The three depths differ by ~7x (K2-18b is a sub-Neptune),
+    so pooled raw depths would make domain B three clusters separated by mean
+    level, and a discriminator would win on level alone, the same free-shortcut
+    class as the constant gap fill. Each target is therefore divided by its own
+    mean depth before pooling (`level` is saved). That keeps each planet's
+    spectral SHAPE and its real noise, and removes only the absolute level that
+    no single-planet comparison ever had to contend with.
+    """
+    if grid != "abcniriss":
+        raise SystemExit("[guard] --target all needs --grid abcniriss: it is the only "
+                         "grid PRISM and NIRISS share")
+    parts = {t: build(t, grid, n, seed) for t in TARGETS}
+    wl = parts["wasp39"]["wlen"]
+    for t, r in parts.items():
+        if not np.array_equal(r["wlen"], wl):
+            raise SystemExit(f"[guard] {t} landed on a different grid")
+    level = {t: float(np.nanmean(r["depth"][r["covered"]])) for t, r in parts.items()}
+    samples = np.vstack([r["samples"] / level[t] for t, r in parts.items()])
+    tgt = np.concatenate([[t] * len(r["samples"]) for t, r in parts.items()])
+    fids = np.concatenate([r["frame_ids"] for r in parts.values()])
+    covered = np.all([r["covered"] for r in parts.values()], axis=0)
+    out = OUT / f"real_domain_all3_{grid}{suffix}.npz"
+    np.savez(out, samples=samples.astype(np.float32), wlen=wl, covered=covered,
+             sample_target=tgt, frame_ids=fids, target="all", grid=grid,
+             abc_cols=parts["wasp39"]["abc_cols"],
+             level=np.array([level[t] for t in TARGETS]),
+             level_targets=np.array(list(TARGETS)),
+             source=np.array([parts[t]["source"] for t in TARGETS]))
+    counts = ", ".join("%s %d" % (t, len(r["samples"])) for t, r in parts.items())
+    print(f"  pooled     {counts} frames, {samples.shape[1]} bins, "
+          f"{int(covered.sum())} covered by all three")
+    print(f"  level      " + ", ".join(f"{t} {level[t]:.5f}" for t in TARGETS) +
+          "  (each target divided by its own mean depth)")
+    print(f"  saved      {out}")
+
+
+def build(target, grid, n, seed):
     t = TARGETS[target]
     wl_s = abc_stored_grid()                 # the model's bin order (descending)
     order = np.argsort(wl_s)                 # -> ascending, which binning needs
@@ -165,33 +228,31 @@ def main(target, grid, n, seed, suffix=""):
     if not np.isfinite(samples).all():
         raise SystemExit("[guard] non-finite values survived the uncovered-bin fill")
 
-    out = OUT / f"real_domain_{target}_{grid}{suffix}.npz"
-    # `samples` is already gap-filled and finite, so loaders just load it.
-    # `covered` stays for bookkeeping: which bins carry real measurements.
-    # `abc_cols` indexes the STORED-order ABC grid, letting the trainer slice
-    # domain A to exactly these wavelengths. Its absence is how downstream
-    # scripts detect a file with no ABC correspondence and refuse, rather than
-    # silently pairing mismatched bins.
-    np.savez(out, samples=samples.astype(np.float32), wlen=wl, covered=covered,
-             depth=depth, frame_ids=ints[idx], target=target, grid=grid,
-             abc_cols=cols, source=Path(t["oot"]).name)
+    return dict(samples=samples, wlen=wl, covered=covered, depth=depth,
+                frame_ids=ints[idx], abc_cols=cols, source=Path(t["oot"]).name,
+                n_avail=len(ints), seed=seed,
+                scatter=float(np.nanstd(rel[idx][:, covered], axis=0).mean()))
 
-    scat = np.nanstd(rel[idx][:, covered], axis=0).mean()
-    print(f"  target     {target}  ({Path(t['oot']).name})")
-    print(f"  grid       {grid}, {len(wl)} bins, {wl.min():.2f}-{wl.max():.2f} µm "
+
+def report(r, target, out):
+    wl, covered, depth = r["wlen"], r["covered"], r["depth"]
+    n_used = len(r["frame_ids"])
+    print(f"  target     {target}  ({r['source']})")
+    print(f"  grid       {len(wl)} bins, {wl.min():.2f}-{wl.max():.2f} µm "
           f"(stored order, descending — matches the hdf's flux columns)")
-    print(f"  frames     {len(ints)} available -> {len(idx)} used "
-          f"({'all' if len(idx) == len(ints) else f'random subset, seed {seed}'})")
+    print(f"  frames     {r['n_avail']} available -> {n_used} used "
+          f"({'all' if n_used == r['n_avail'] else 'random subset, seed %d' % r['seed']})")
     print(f"  covered    {covered.sum()}/{len(covered)} bins")
     print(f"  depth      median {np.nanmedian(depth[covered]):.5f}")
-    print(f"  real noise mean per-bin fractional scatter = {scat:.4f} "
+    print(f"  real noise mean per-bin fractional scatter = {r['scatter']:.4f} "
           f"(vs 0.01 synthetic jitter in the published run)")
     print(f"  saved      {out}")
 
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--target", choices=list(TARGETS), required=True)
+    ap.add_argument("--target", choices=list(TARGETS) + ["all"], required=True,
+                    help="'all' pools the three reduced spectra (V7), abcniriss only")
     ap.add_argument("--grid", choices=["abc", "abcniriss"], default="abc")
     ap.add_argument("--n", type=int, default=None, help="frames to use (default: all)")
     ap.add_argument("--seed", type=int, default=0)
