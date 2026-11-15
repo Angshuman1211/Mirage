@@ -8,14 +8,19 @@ Trains a sim-to-real CycleGAN on:
 Writes checkpoints to configs/cyclegan/ and a training log to
 configs/cyclegan/training_log.csv.
 
+Domain B must be a real domain built from genuine frames (V7, 2026-11-15). The
+single-spectrum bootstrap real side is retired and reachable only with
+--legacy-bootstrap, as a negative control.
+
 Usage:
-    python scripts/train_cyclegan.py [options]
+    python scripts/train_cyclegan.py --real-domain <npz> --ckpt-dir <dir> [options]
 
-Example (quick smoke test, ~2 min on M1 Pro):
-    python scripts/train_cyclegan.py --epochs 5 --batch-size 32 --n-abc 500
+Example (quick smoke test):
+    python scripts/train_cyclegan.py --epochs 5 --batch-size 32 --n-abc 500 \
+        --real-domain data/real_domain/real_domain_wasp39_abc.npz --ckpt-dir configs/_smoke
 
-Full training:
-    python scripts/train_cyclegan.py --epochs 200 --batch-size 64
+V7, all three real spectra pooled on the shared NIRISS grid:
+    bash scripts/run_v7_pooled.sh
 """
 
 from __future__ import annotations
@@ -59,7 +64,8 @@ BETAS      = (0.5, 0.999)
 # ── Data loading ───────────────────────────────────────────────────────────
 
 def load_abc_spectra(n_samples: int | None = None,
-                     cols: np.ndarray | None = None) -> torch.Tensor:
+                     cols: np.ndarray | None = None,
+                     index_file: str | None = None) -> torch.Tensor:
     """
     Load simulated spectra for domain A.
     Primary: normalised ABC training spectra from abc_train.hdf.
@@ -125,6 +131,17 @@ def load_abc_spectra(n_samples: int | None = None,
             noise = rng.standard_normal((2000, N_BINS)) * single.std() * 0.02
             flux = (single[None, :] + noise).astype(np.float32)
 
+    # V3: restrict domain A to rows chosen by v3_planet_neighbourhood.py. Rows
+    # are selected BEFORE the percentile rescale, so the scaling is set by the
+    # restricted population, exactly as `cols` does for bins.
+    if index_file is not None:
+        idx = np.asarray(np.load(index_file)["idx"], dtype=int)
+        if not path.exists():
+            raise SystemExit("[guard] --abc-index needs data/abc/abc_train.hdf; the "
+                             "per-integration fallback has no ABC row indices")
+        flux = flux[idx]
+        print(f"  [domain A] restricted to {len(idx)} rows from {Path(index_file).name}")
+
     if cols is not None:
         flux = flux[:, np.asarray(cols, dtype=int)]
 
@@ -144,9 +161,12 @@ def load_abc_spectra(n_samples: int | None = None,
 
 
 def load_real_spectra(n_bins: int = N_BINS) -> torch.Tensor:
-    """
-    Load real WASP-39b spectra from the standardised CSV and bin to n_bins.
-    Returns: (N_integrations, n_bins) float32 tensor in [-1, 1].
+    """RETIRED (V7, 2026-11-15). Reachable only with --legacy-bootstrap.
+
+    Bootstraps ONE spectrum into 500 near-copies with 1% Gaussian jitter, in
+    stellar-flux units and ascending wavelength order (P5-D11). Kept only so the
+    published configs/cyclegan run stays reproducible as a negative control.
+    Never use it as a real domain.
     """
     # Try multiple paths
     candidates = [
@@ -215,6 +235,12 @@ def real_domain_meta(path: Path) -> tuple[int, np.ndarray]:
     return int(d["samples"].shape[1]), np.asarray(d["abc_cols"], dtype=int)
 
 
+def real_domain_targets(path: Path) -> np.ndarray | None:
+    """Per-sample target labels of a pooled real domain (build_real_domain --target all)."""
+    d = np.load(path, allow_pickle=True)
+    return np.asarray(d["sample_target"]).astype(str) if "sample_target" in d else None
+
+
 def load_real_domain_npz(path: Path, n_bins: int) -> torch.Tensor:
     """Domain B from genuinely independent real OOT frames (build_real_domain.py).
 
@@ -262,7 +288,26 @@ def train(
     device_str: str = "cpu",
     real_domain: str | None = None,
     ckpt_dir: str | None = None,
+    legacy_bootstrap: bool = False,
+    balance_targets: bool = False,
+    abc_index: str | None = None,
+    seed: int | None = None,
 ) -> None:
+
+    # V7: the bootstrapped single-spectrum real side is retired. A real domain
+    # built from genuine frames is now required, unless the caller explicitly
+    # asks to reproduce the legacy negative control.
+    if not real_domain and not legacy_bootstrap:
+        raise SystemExit(
+            "[guard] --real-domain is required. The bootstrap real side (one spectrum "
+            "jittered 500 ways, P5-D11) is retired (V7). Build a real domain with "
+            "scripts/build_real_domain.py, or pass --legacy-bootstrap to reproduce "
+            "the old negative control on purpose.")
+    if real_domain and legacy_bootstrap:
+        raise SystemExit("[guard] --real-domain and --legacy-bootstrap are exclusive")
+    if seed is not None:                 # V7 acceptance: reproducible from config
+        torch.manual_seed(seed)
+        np.random.seed(seed)
 
     global CKPT_DIR                      # P5-D11: never clobber a previous run
     if ckpt_dir:
@@ -286,16 +331,38 @@ def train(
 
     # Load data
     print("\n  Loading data ...")
-    sim_data  = load_abc_spectra(n_samples=n_abc, cols=abc_cols).to(device)
-    real_data = (load_real_domain_npz(Path(real_domain), n_bins) if real_domain
-                 else load_real_spectra(n_bins=n_bins)).to(device)
+    sim_data  = load_abc_spectra(n_samples=n_abc, cols=abc_cols,
+                                 index_file=abc_index).to(device)
+    if real_domain:
+        real_data = load_real_domain_npz(Path(real_domain), n_bins).to(device)
+    else:
+        print("  !! LEGACY BOOTSTRAP real side: one spectrum jittered 500 ways. "
+              "Negative control only (P5-D11, V7).")
+        real_data = load_real_spectra(n_bins=n_bins).to(device)
     print(f"  ABC simulated spectra:  {sim_data.shape}")
     print(f"  Real JWST spectra:      {real_data.shape}")
 
     sim_loader  = DataLoader(TensorDataset(sim_data),  batch_size=batch_size,
                              shuffle=True, drop_last=True)
-    real_loader = DataLoader(TensorDataset(real_data), batch_size=batch_size,
-                             shuffle=True, drop_last=True)
+    targets = real_domain_targets(Path(real_domain)) if real_domain else None
+    if balance_targets:
+        if targets is None:
+            raise SystemExit("[guard] --balance-targets needs a pooled real domain "
+                             "(build_real_domain.py --target all)")
+        # Equal expected draws per target per epoch. The small targets' frames are
+        # reused, but every reused row is a genuine frame, not synthetic jitter.
+        names, counts = np.unique(targets, return_counts=True)
+        per = dict(zip(names, counts))
+        w = torch.tensor([1.0 / per[t] for t in targets], dtype=torch.double)
+        sampler = torch.utils.data.WeightedRandomSampler(
+            w, num_samples=len(targets), replacement=True)
+        real_loader = DataLoader(TensorDataset(real_data), batch_size=batch_size,
+                                 sampler=sampler, drop_last=True)
+        print("  balanced over targets: " +
+              ", ".join(f"{n} {c} frames" for n, c in per.items()))
+    else:
+        real_loader = DataLoader(TensorDataset(real_data), batch_size=batch_size,
+                                 shuffle=True, drop_last=True)
 
     # Build model
     model = CycleGAN(
@@ -330,8 +397,11 @@ def train(
         "lambda_cyc": lambda_cyc, "lambda_id": lambda_id,
         "n_abc_samples": int(sim_data.shape[0]),
         "n_real_samples": int(real_data.shape[0]),
-        "real_domain": real_domain,
+        "real_domain": real_domain if real_domain else "LEGACY_BOOTSTRAP",
         "abc_cols": None if abc_cols is None else abc_cols.tolist(),
+        "abc_index": abc_index,
+        "balance_targets": bool(balance_targets),
+        "seed": seed,
         "device": device_str,
     }
     with open(CKPT_DIR / "config.json", "w") as fh:
@@ -451,8 +521,17 @@ if __name__ == "__main__":
                    help="output dir for this run (default configs/cyclegan). "
                         "Use a fresh dir so an earlier model is never overwritten.")
     p.add_argument("--real-domain", type=str,   default=None,
-                   help="npz from build_real_domain.py; real OOT-noise domain B "
-                        "(omit to use the legacy bootstrap loader)")
+                   help="npz from build_real_domain.py; real OOT-noise domain B. "
+                        "Required (V7) unless --legacy-bootstrap.")
+    p.add_argument("--legacy-bootstrap", action="store_true",
+                   help="reproduce the RETIRED single-spectrum bootstrap real side "
+                        "(negative control only, P5-D11)")
+    p.add_argument("--balance-targets", action="store_true",
+                   help="pooled real domain: draw each target equally often (V7)")
+    p.add_argument("--abc-index",   type=str,   default=None,
+                   help="npz with `idx`: restrict domain A to these abc_train rows (V3)")
+    p.add_argument("--seed",        type=int,   default=None,
+                   help="torch/numpy seed, recorded in config.json")
     p.add_argument("--device",      type=str,   default="cpu",
                    choices=["cpu", "cuda", "mps"])
     args = p.parse_args()
@@ -471,4 +550,8 @@ if __name__ == "__main__":
         device_str=args.device,
         real_domain=args.real_domain,
         ckpt_dir=args.ckpt_dir,
+        legacy_bootstrap=args.legacy_bootstrap,
+        balance_targets=args.balance_targets,
+        abc_index=args.abc_index,
+        seed=args.seed,
     )

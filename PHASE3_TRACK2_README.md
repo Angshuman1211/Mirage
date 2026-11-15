@@ -1,5 +1,11 @@
 # Phase 3 Track 2: CycleGAN Ablation — Quick Start
 
+> **Historical (Phase 3). Superseded.** The real side this guide trained against
+> was one spectrum bootstrapped to 500 near-copies (P5-D11), and that loader is
+> retired (V7, 2026-11-15): `train_cyclegan.py` now refuses to run without
+> `--real-domain`. The commands below were updated to match. For the current
+> translation work see `Documentation/10_track2_v2_v7_results.md`.
+
 **Objective**: Quantify IS-efficiency contribution from CycleGAN translation vs domain randomisation alone.
 
 ---
@@ -22,7 +28,8 @@
 
 ```bash
 # Train CycleGAN (5 epochs, 2 min)
-python scripts/train_cyclegan.py --epochs 5 --n-abc 500 --batch-size 32
+python scripts/train_cyclegan.py --epochs 5 --n-abc 500 --batch-size 32 \
+    --real-domain data/real_domain/real_domain_wasp39_abc.npz --ckpt-dir configs/_smoke
 
 # Run ablation (10 planets, 3 min)
 python scripts/probe_cyclegan_input_shift.py --n-planets 10 --n-samples 500
@@ -32,7 +39,8 @@ python scripts/probe_cyclegan_input_shift.py --n-planets 10 --n-samples 500
 
 ```bash
 # Train CycleGAN (200 epochs, 6 hours on M1 Pro / 2 hours on GPU)
-python scripts/train_cyclegan.py --epochs 200 --batch-size 64 --device cpu
+python scripts/train_cyclegan.py --epochs 200 --batch-size 64 --device cpu \
+    --real-domain data/real_domain/real_domain_wasp39_abc.npz --ckpt-dir configs/<run>
 
 # Run ablation (50 planets × 1000 samples, 30 min)
 python scripts/probe_cyclegan_input_shift.py --n-planets 50 --n-samples 1000
