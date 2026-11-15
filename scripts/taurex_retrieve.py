@@ -127,7 +127,9 @@ def main(live, FLOOR=0.01, clouds=False, highres=False, nbins=150, tprofile="iso
         opt.enable_fit("planet_radius")                  # baseline is a nuisance the fixed
         opt.set_boundary("planet_radius", P["rb"])       # per-planet radius bounds (P5)
     npar = (7 if tprofile == "npoint" else 6) + (1 if clouds else 0) + len(extra_mols) + (1 if fitrad else 0)
-    print(f"[retrieve] NS on real WASP-39b, {live} live points, {len(wl)} bins, {npar} params ...")
+    # Name the planet actually being fitted. This line said "WASP-39b" unconditionally,
+    # which made the wasp96 and k218 logs misreport their own target (A5 found it).
+    print(f"[retrieve] NS on real {planet}, {live} live points, {len(wl)} bins, {npar} params ...")
     opt.fit()
 
     # BULLETPROOF: save raw samples/weights/names — never lose an expensive run to
