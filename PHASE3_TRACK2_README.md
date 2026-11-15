@@ -9,7 +9,7 @@
 ### Core Components
 - `mirage/nn/cyclegan.py` — CycleGAN architecture (ResNet generators + PatchGAN discriminators)
 - `scripts/train_cyclegan.py` — Training script (ABC sim → JWST real)
-- `scripts/run_cyclegan_ablation.py` — Four-condition ablation evaluation
+- `scripts/probe_cyclegan_input_shift.py` — Four-condition ablation evaluation
 
 ### Documentation
 - `Documentation/03_track2_cyclegan_ablation.md` — Full technical documentation
@@ -25,7 +25,7 @@
 python scripts/train_cyclegan.py --epochs 5 --n-abc 500 --batch-size 32
 
 # Run ablation (10 planets, 3 min)
-python scripts/run_cyclegan_ablation.py --n-planets 10 --n-samples 500
+python scripts/probe_cyclegan_input_shift.py --n-planets 10 --n-samples 500
 ```
 
 ### 2. Full Evaluation (6.5 hours total)
@@ -35,7 +35,7 @@ python scripts/run_cyclegan_ablation.py --n-planets 10 --n-samples 500
 python scripts/train_cyclegan.py --epochs 200 --batch-size 64 --device cpu
 
 # Run ablation (50 planets × 1000 samples, 30 min)
-python scripts/run_cyclegan_ablation.py --n-planets 50 --n-samples 1000
+python scripts/probe_cyclegan_input_shift.py --n-planets 50 --n-samples 1000
 ```
 
 ---
