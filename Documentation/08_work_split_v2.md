@@ -248,6 +248,11 @@ fallback stating what happens to the paper if it does not arrive.
 
 #### V7. Rebuild the CycleGAN real side on all three real spectra. Due 2026-11-16. (NEW)
 
+> **Status 2026-11-15 (P6-D16): BUILT, NOT RUN.** Bootstrap retired in code, pooled 3-spectrum
+> domain and seeded, committed runner ready (`scripts/run_v7_pooled.sh`, `scripts/v7_table.py`),
+> smoke-tested end to end. Blocked only on `data/jwst_{wasp39b,wasp96b,k2_18b}_spectrum.csv`,
+> which are not in the repo. About 1 h of GPU once they are present.
+
 The current real side is **one** reduced WASP-39b spectrum, bootstrap-expanded to 500 samples
 with 1 percent photon-noise jitter. Under v1's framing that was a weak spot in a minor
 section. Under framing B it is fatal, because the single sentence "your translator failed
@@ -264,6 +269,12 @@ holds, weakens or reverses.
 framing B drops to a single pillar. Say so before the writing starts, not during it.
 
 #### V2. The cheap baselines any learned translator must beat. Due 2026-11-16. (closes G8)
+
+> **Status 2026-11-15 (P6-D13): DISTRIBUTIONAL HALF DONE, INFERENTIAL HALF OPEN.** Six-row table
+> on held-out real frames, 3 seeds, reproducing the published tier-1 MMD to four decimals. MMD:
+> quantile 0.106, reweight 0.146, randomisation 0.168, none 0.288, affine 0.288 (the metric is
+> per-bin affine-invariant, so affine cannot be scored in it), CycleGAN 0.782. The JS-to-NS
+> column needs per-arm flow retrains plus the anchor, so the fallback applies to that half only.
 
 Three arms, all inexpensive, none needing new data. **Per-bin affine**. **Per-bin quantile
 mapping**, the standard bias-correction baseline in climate downscaling. **Classifier
@@ -287,6 +298,10 @@ paper reduces to V6.
 
 #### V6. Related work, and relabel the old script. Due 2026-11-23. (G14, G15)
 
+> **Status 2026-11-15: DONE.** Draft prose and verified references in
+> `Documentation/09_track2_v6_related_work.md`, with five corrections to our own docs found during
+> the check. Script renamed to `scripts/probe_cyclegan_input_shift.py`, docstring rewritten.
+
 Own the related-work section. Swierc et al. (2410.16347) on unsupervised domain adaptation for
 NPE in strong lensing is the right comparison class, and it aligns representations rather than
 translating data, which is the distinction the paper turns on. Then diffusion and Schrodinger
@@ -299,6 +314,11 @@ posterior-level translation result.
 source rather than a secondary summary, and the script renamed with its docstring corrected.
 
 #### V1b. Score the translated arm on the A1 injection ladder. Due 2026-11-23. (NEW)
+
+> **Status 2026-11-15 (P6-D15): BLOCKED, AND IT IS A BUILD, NOT A RUN.** The translated arm is the
+> 6-parameter ABC model while every Tier-1 set is 7-parameter radius, and its `model__best.pt` is
+> not committed. Recommended route: a 6-parameter Tier-1 set via `inject_real_noise.py --build` in
+> `mirage-taurex`, which needs Track 1's machine.
 
 **This requirement did not exist before 2026-11-08 and it comes from P6-D8.** A1 found that
 conditioning HELPS against prior-draw labels while P6-D2 found it HURTS against the
@@ -319,6 +339,11 @@ decision log saying whether P6-D3 is evaluator-independent or not.
 
 #### V5. Tier 2, multiple reductions of the same visit. Verification due 2026-11-16, result due 2026-11-30. (G5, H7)
 
+> **Verification 2026-11-15 (P6-D14):** Schmidt K2-18b **yes** (up to 4 G395H reductions, NIRISS
+> FIREFLy + exoTEDRF). Luque K2-18b **yes for NIRSpec and MIRI** (exoTEDRF / Eureka! / SPARTA),
+> **no for NIRISS** (exoTEDRF only). Carter WASP-39b **no**: one uniform analysis of four visits,
+> with only limb-darkening and dilution variants per visit. The H7 test should use K2-18b G395H.
+
 Each pair of reductions shares the same astrophysical truth, so pipeline shift is isolated
 from atmosphere. K2-18b (Schmidt et al. Zenodo 14735689, Luque et al. Zenodo 15685551) and
 WASP-39b's four-mode Carter et al. reduction (Zenodo 10.5281/zenodo.10161743).
@@ -333,6 +358,10 @@ per-reduction spectra in a usable format. Do not plan around the dataset before 
 exists.
 
 #### V3. H1 once, as a mechanism check, then stop. Due 2026-11-12. (closes G7)
+
+> **Status 2026-11-15 (P6-D16): BUILT, NOT RUN.** `scripts/run_v3_h1.sh`: domain A restricted to
+> the 2,000 ABC spectra nearest the real WASP-39b spectrum, one retrain. Blocked on the same
+> spectrum CSV as V7.
 
 Rebuild domain A restricted to one planet's parameter neighbourhood, retrain once, see whether
 the 0.308 per-bin-sigma mean shift collapses. If it does, the negative gains a mechanism. If

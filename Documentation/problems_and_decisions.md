@@ -1028,7 +1028,72 @@ In both families the spread of the three group means is smaller than the largest
 
 ---
 
-> **P6-D13 to P6-D16 are RESERVED for Track 2, not missing.** Track 2 delivered them on 2026-11-15 (V6 related work, V2 baselines, V5 verification, V7/V3 built, V1b scoped), but that branch was withdrawn before merge and is being redelivered. The Track 1 entries below were renumbered from D13/D14 to D17/D18 to leave those four IDs free, so the redelivery slots in at its original numbering and nothing here has to move again. If Track 2 renumbers instead, close this gap.
+### P6-D13 — V2 distributional half: quantile mapping beats every arm, affine cannot be scored in the published space, and the classifier separates the domains perfectly [Phase 6, 2026-11-15, Track 2]
+
+**What ran.** `scripts/v2_cheap_baselines.py`, three seeds, `configs/v2_baselines_wasp39/`. WASP-39b PRISM on all 52 ABC bins against the real out-of-transit frames, with the same metric code as the published tier-1 table. The new arms are fit on real data, so every arm, old and new, is scored on held-out real frames. The split is contiguous by integration: the first 1,620 frames fit and 500 of the remaining 1,621 score, because JWST systematics are time-correlated.
+
+**Reproduction first.** On the published protocol (500 random frames of all 3,241) the script gives MMD 0.2925 / 0.1704 / 0.7686 for sim / randomisation / CycleGAN, identical to four decimals to `configs/cyclegan_t1_wasp39/ablation.json`, with KL within 0.003. That is the evidence for the next claim, not decoration.
+
+**The reduced spectrum's depth cancels from this metric.** The standalone ablation standardises sim by its own per-bin mean and sd, and real by its own, before comparing. A real sample is depth x (1 + r), so per-bin standardisation removes depth exactly. V2's distributional half therefore runs from the OOT frames alone, which is why it could run on a machine without `data/jwst_*_spectrum.csv`. The exact reproduction confirms it.
+
+| arm | MMD to real | no adaptation | KL | mean shift |
+|---|---|---|---|---|
+| no adaptation | 0.2883 +/- 0.0015 | 0.2883 | 3.33 | 0.173 |
+| structured randomisation | 0.1682 +/- 0.0013 | 0.2883 | 3.31 | 0.179 |
+| CycleGAN (tier-1 generator) | 0.7823 +/- 0.0113 | 0.2883 | 3.33 | 0.272 |
+| per-bin affine | 0.2883 +/- 0.0015 | 0.2883 | 3.33 | 0.173 |
+| per-bin quantile mapping | **0.1056 +/- 0.0010** | 0.2883 | **0.89** | 0.163 |
+| classifier reweighting | 0.1459 +/- 0.0017 | 0.2883 | 2.33 | 0.454 |
+
+Mean +/- sd over seeds 0-2. The seed varies only the held-out real subsample. Mean shift here is measured against real frames standardised by the FIT half's statistics, so it includes real drift between the two halves of the visit. That is why it is about 0.17 for no adaptation, where the published protocol gave 0.03.
+
+1. **Quantile mapping is the best arm on both metrics**, -63% MMD and KL 3.33 to 0.89. A per-bin CDF transfer with no learning loop beats structured randomisation (-42%), and beats the CycleGAN by a factor of 7.4.
+2. **Affine is identical to no adaptation, by construction.** The per-bin standardisation undoes any per-bin affine map. So the work split's sentence "affine and quantile mapping beat no adaptation" cannot be tested in this space. Half of it is a property of the metric, not a result. Report affine as "not distinguishable in a per-bin-standardised metric" rather than as a null.
+3. **The sim-versus-real classifier reaches AUC 1.000** (3-fold cross-validated, gradient boosting on the full 52-bin vector). The density ratio p(real)/p(sim) has no common support to estimate. The reweighted arm's MMD gain comes from up-weighting the sim samples nearest the real cloud (weight ESS 135 of 500). Its mean shift gets worse, 0.454, because those few samples sit off-centre. Reweighting cannot move mass where the simulator has none, and AUC 1.0 says that is the situation.
+4. **The CycleGAN ordering is unchanged under held-out scoring**, 2.7x worse than no adaptation. The negative does not depend on scoring against frames the generator saw.
+
+**What this does not establish.** All of this is distributional. The inferential column, posterior JS to the NS anchor, needs one flow trained per arm on the mapped training set plus the anchor, and neither exists in the repository. Quantile mapping winning on MMD is exactly the situation the dissociation thesis warns about. A per-bin marginal match can be achieved by a map that destroys the parameter information a retrieval reads, so it must not be quoted as "quantile mapping helps retrieval" until the inferential column exists. V2's fallback in the work split applies to that half: Track 1 absorbs it.
+
+---
+
+### P6-D14 — V5 data verification: two of three Tier-2 records hold per-reduction spectra; the WASP-39b record does not hold multiple reductions of one visit [Phase 6, 2026-11-15, Track 2]
+
+Checked by reading each record's metadata and its zip index on Zenodo, without downloading the archives.
+
+- **K2-18b, Schmidt et al., Zenodo 14735689: yes.** Text `.dat` spectra per reduction: NIRISS SOSS orders 1 and 2 from FIREFLy and exoTEDRF (R25, R100, 2-pixel), and NIRSpec G395H NRS1/NRS2 from Eureka! (two reductions, Ahrer and Bell), FIREFLy and exoTEDRF (R100 to R300 and pixel). Up to four reductions of the same G395H visit. Plus Eureka! control files and retrieval corner plots. 427 MB.
+- **K2-18b, Luque et al., Zenodo 15685551: yes for NIRSpec and MIRI, no for NIRISS.** CSV spectra: NIRSpec G395H NRS1/NRS2 at R200 from exoTEDRF, Eureka! and SPARTA, and MIRI LRS at R70 from the same three. NIRISS SOSS has exoTEDRF only, so there is no NIRISS pipeline pair here. Also SCARLET posterior samples with weights. 2.8 GB.
+- **WASP-39b, Carter et al., Zenodo 10161743: no, not in the sense H7 needs.** It is one uniform analysis of four different modes, which are four different visits, not several reductions of one. The only same-visit variants are analysis choices: fitted versus fixed limb darkening for every mode, and PRISM with and without a dilution correction, each at five binning scales. That isolates analysis-choice shift, which is weaker than pipeline shift. The six independent PRISM reductions H7 wants are the ones compared in Roy-Perez et al. (2026), and are not in this record.
+
+**For H7.** The K2-18b G395H visit is the cleanest test available: four reductions in Schmidt plus three in Luque, some overlapping by pipeline, all of the same visit. The WASP-39b pipeline-shift test has to come from Roy-Perez's spectra, which were not checked here.
+
+---
+
+### P6-D15 — V1b is a build, not a run: the translated arm and the Tier-1 sets do not share a parameter space [Phase 6, 2026-11-15, Track 2]
+
+**Found while setting V1b up.** The work split calls V1b a run, with `scripts/sbc_report.py --tier data/inject/wasp39_tier1.hdf`. It is not one, for two reasons.
+
+1. **Parameter-space mismatch.** The translated arm `configs/cyclegan_posterior_cov` is the 6-parameter ABC model (`dataset: abc`, `theta_scaler: abc`, no radius). Every Tier-1 set is built for the 7-parameter radius arms on the `abc_rad` grid (`inject_real_noise.py` reads `data/abc_rad*/abc_rad_train.hdf`), and `sbc_report.py` scores 7 parameters including `rp_rj`. Pushing the translated arm through it would fail on dimensions, or, if forced, score a model against labels it cannot represent.
+2. **The checkpoint is not in the repository.** `configs/cyclegan_posterior_cov/` has `config.yaml`, `git-hash.txt` and `requirements.txt` but no `model__best.pt`, unlike the `h9_*` arms, whose checkpoints were force-added.
+
+**Two ways to close it, both builds.** (a) A 6-parameter Tier-1 set: the same injection construction with the radius fixed at the ABC geometry, run through `inject_real_noise.py --build` in `mirage-taurex`. Cheaper, but it scores the translated arm on a different label space from every A1 cell. (b) A 7-parameter translated arm: translate `abc_rad_train.hdf` through a CycleGAN trained on the `abc_rad` grid, then train the radius cov arm on it. That matches the A1 table, but it is a new CycleGAN variant, which the work split forbids, so it needs an explicit exception. Recommend (a). The question V1b asks is whether P6-D3's verdict depends on the evaluator, and a 6-parameter injection ladder answers that for the model P6-D3 actually tested.
+
+**Consequence for the 2026-11-23 date.** V1b needs the `mirage-taurex` environment and a translated-arm checkpoint, neither available on the Track 2 machine. Either Track 1 runs it, or the checkpoint and env come over. Recorded now so the date is not missed silently.
+
+---
+
+### P6-D16 — V7 and V3 built and smoke-tested, not yet run; the bootstrap real side is retired in code [Phase 6, 2026-11-15, Track 2]
+
+**V7 acceptance, part one, met: the bootstrap is retired.** `train_cyclegan.py` now refuses to start without `--real-domain`. The single-spectrum bootstrap loader is reachable only with `--legacy-bootstrap`, which prints a warning and records `LEGACY_BOOTSTRAP` in `config.json`, so it survives only as a reproducible negative control. A `--seed` flag, also recorded in `config.json`, makes the V7 run reproducible from its committed config, which was not true of any earlier CycleGAN run.
+
+**The pooled real domain.** `build_real_domain.py --target all --grid abcniriss` pools WASP-39b, WASP-96b and K2-18b on the 26 bins PRISM and NIRISS share, and keeps every frame (3,241 / 56 / 96). Each row is labelled by target, so `--balance-targets` can draw the three equally rather than letting WASP-39b supply 95% of domain B. Each target is divided by its own mean depth first. The three planets' depths differ by about 7x, and without this step a discriminator separates domain B on depth level alone, the same free-shortcut class as the constant gap fill in P5-D11.
+
+**Scoring is like-for-like only.** The one pooled translator is scored against each target's own frames at 56 frames, beside the published per-target tier-2 translators, and at every frame, beside `cyclegan_ctrl_wasp39_26b_full`. The verdict rests on the full-frame rows, because of P5-D11's 71% frame-count artefact. `scripts/v7_table.py` prints the decision-log sentence (holds / weakens / reverses) from the numbers.
+
+**V3 (H1).** `v3_planet_neighbourhood.py` keeps the k = 2,000 ABC training spectra nearest the real WASP-39b spectrum. The distance is offset-invariant, measured in depth space on the bins the reduced spectrum covers, because a fixed-radius ABC atmosphere and the real planet can differ by a near-constant level: the missing-radius story itself. `train_cyclegan.py --abc-index` restricts domain A to those rows. Everything else matches `cyclegan_t1_wasp39`, so the test is whether the 0.308 mean shift collapses.
+
+**Why neither has run.** Both train against domain B as real depth carrying real noise, so they need `data/jwst_{wasp39b,wasp96b,k2_18b}_spectrum.csv`. Unlike V2's metric, CycleGAN training scales domain B globally rather than per bin, so the depth shape does not cancel. Those files are not in the repository or on the Track 2 machine. Every new code path was exercised end to end on CUDA, one epoch each, with stand-in spectra. Those are not data: the stand-ins were deleted and no output was kept. Once the three CSVs are in `data/`, `bash scripts/run_v7_pooled.sh` and `bash scripts/run_v3_h1.sh` produce the results and tables.
+
+**Against the 2026-11-16 date.** V7's code and acceptance machinery are ready, but its result is not. The work split's stated fallback is that the CycleGAN result is cut and framing B drops to one pillar. That is not yet triggered, because the run is about an hour on a GPU once the spectra are present. If the spectra cannot reach a machine that can run it before writing starts, the fallback applies and should be declared then, as the work split asks, not during writing.
 
 ---
 

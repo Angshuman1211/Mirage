@@ -1,5 +1,11 @@
 # Phase 3 Track 2: CycleGAN Ablation — Quick Start
 
+> **Historical (Phase 3). Superseded.** The real side this guide trained against
+> was one spectrum bootstrapped to 500 near-copies (P5-D11), and that loader is
+> retired (V7, 2026-11-15): `train_cyclegan.py` now refuses to run without
+> `--real-domain`. The commands below were updated to match. For the current
+> translation work see P6-D13 to P6-D16 in `Documentation/problems_and_decisions.md`.
+
 **Objective**: Quantify IS-efficiency contribution from CycleGAN translation vs domain randomisation alone.
 
 ---
@@ -9,7 +15,7 @@
 ### Core Components
 - `mirage/nn/cyclegan.py` — CycleGAN architecture (ResNet generators + PatchGAN discriminators)
 - `scripts/train_cyclegan.py` — Training script (ABC sim → JWST real)
-- `scripts/run_cyclegan_ablation.py` — Four-condition ablation evaluation
+- `scripts/probe_cyclegan_input_shift.py` — Four-condition ablation evaluation
 
 ### Documentation
 - `Documentation/03_track2_cyclegan_ablation.md` — Full technical documentation
@@ -22,20 +28,22 @@
 
 ```bash
 # Train CycleGAN (5 epochs, 2 min)
-python scripts/train_cyclegan.py --epochs 5 --n-abc 500 --batch-size 32
+python scripts/train_cyclegan.py --epochs 5 --n-abc 500 --batch-size 32 \
+    --real-domain data/real_domain/real_domain_wasp39_abc.npz --ckpt-dir configs/_smoke
 
 # Run ablation (10 planets, 3 min)
-python scripts/run_cyclegan_ablation.py --n-planets 10 --n-samples 500
+python scripts/probe_cyclegan_input_shift.py --n-planets 10 --n-samples 500
 ```
 
 ### 2. Full Evaluation (6.5 hours total)
 
 ```bash
 # Train CycleGAN (200 epochs, 6 hours on M1 Pro / 2 hours on GPU)
-python scripts/train_cyclegan.py --epochs 200 --batch-size 64 --device cpu
+python scripts/train_cyclegan.py --epochs 200 --batch-size 64 --device cpu \
+    --real-domain data/real_domain/real_domain_wasp39_abc.npz --ckpt-dir configs/<run>
 
 # Run ablation (50 planets × 1000 samples, 30 min)
-python scripts/run_cyclegan_ablation.py --n-planets 50 --n-samples 1000
+python scripts/probe_cyclegan_input_shift.py --n-planets 50 --n-samples 1000
 ```
 
 ---

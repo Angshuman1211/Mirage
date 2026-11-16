@@ -366,7 +366,9 @@ mechanism or struck from this list rather than left standing.
 per-bin affine, quantile mapping, classifier reweighting. **Assigned as V2, due 2026-11-16
 (P6-D9).** Under the locked framing B this is no longer an optional sharpening. The null
 translation result is one of two pillars, and a negative with no comparison class is the first
-thing a reviewer asks about.
+thing a reviewer asks about. **Distributional half CLOSED 2026-11-15 (P6-D13):** quantile mapping
+0.106 MMD, reweighting 0.146, randomisation 0.168, none 0.288, CycleGAN 0.782. Affine cannot be
+scored in the per-bin-standardised metric. The inferential half (JS to NS) is still open.
 
 **G8b. The CycleGAN real side is one spectrum bootstrap-expanded to 500 samples** with 1
 percent jitter, which the external audit flagged as near-certain overfitting. Under framing B
@@ -418,6 +420,8 @@ injected into OOT segments.
 unparseable sentences; reads as a report on what was explored; editorial notes in checklist.
 
 **G15. `run_cyclegan_ablation.py` answers the wrong question.** Relabel as a robustness probe.
+**CLOSED 2026-11-15 (V6):** renamed `scripts/probe_cyclegan_input_shift.py`, docstring and output
+now say it is not the translation result.
 
 ---
 

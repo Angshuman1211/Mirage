@@ -66,7 +66,7 @@ Four experimental conditions evaluated on held-out ABC test planets:
 |------|---------|
 | `mirage/nn/cyclegan.py` | CycleGAN architecture (generators + discriminators) |
 | `scripts/train_cyclegan.py` | Training script for CycleGAN (ABC sim → JWST real) |
-| `scripts/run_cyclegan_ablation.py` | Four-condition ablation evaluation script |
+| `scripts/probe_cyclegan_input_shift.py` | Four-condition input-shift probe (renamed from `run_cyclegan_ablation.py` in V6, 2026-11-15; a robustness probe, NOT the translation result — see P6-D3) |
 | `Documentation/03_track2_cyclegan_ablation.md` | This file |
 
 ### Training
@@ -94,10 +94,10 @@ python scripts/train_cyclegan.py --epochs 5 --batch-size 32 --n-abc 500
 
 ```bash
 # Full ablation (50 planets × 1000 samples, ~30 min on CPU)
-python scripts/run_cyclegan_ablation.py --n-planets 50 --n-samples 1000
+python scripts/probe_cyclegan_input_shift.py --n-planets 50 --n-samples 1000
 
 # Quick test (10 planets × 500 samples)
-python scripts/run_cyclegan_ablation.py --n-planets 10 --n-samples 500
+python scripts/probe_cyclegan_input_shift.py --n-planets 10 --n-samples 500
 ```
 
 **Outputs** (printed to console):
@@ -214,7 +214,7 @@ Phase 3 Track 2 executes this ablation and provides the empirical answer.
 
 - [x] Implement CycleGAN architecture (`mirage/nn/cyclegan.py`)
 - [x] Implement CycleGAN training script (`scripts/train_cyclegan.py`)
-- [x] Implement four-condition ablation script (`scripts/run_cyclegan_ablation.py`)
+- [x] Implement four-condition ablation script (`scripts/probe_cyclegan_input_shift.py`)
 - [x] Create comprehensive documentation (`Documentation/03_track2_cyclegan_ablation.md`)
 - [ ] Train CycleGAN (200 epochs, ~6 hours M1 Pro)
 - [ ] Run ablation on 50 ABC test planets (30 min CPU)
@@ -234,7 +234,7 @@ Phase 3 Track 2 executes this ablation and provides the empirical answer.
 python scripts/train_cyclegan.py --epochs 5 --n-abc 500 --device cpu
 
 # 2. Run ablation (10 planets, 5 min)
-python scripts/run_cyclegan_ablation.py --n-planets 10 --n-samples 500
+python scripts/probe_cyclegan_input_shift.py --n-planets 10 --n-samples 500
 ```
 
 ### Full Evaluation
@@ -244,7 +244,7 @@ python scripts/run_cyclegan_ablation.py --n-planets 10 --n-samples 500
 python scripts/train_cyclegan.py --epochs 200 --batch-size 64 --device cpu
 
 # 2. Run ablation (50 planets × 1000 samples, 30 min CPU)
-python scripts/run_cyclegan_ablation.py --n-planets 50 --n-samples 1000
+python scripts/probe_cyclegan_input_shift.py --n-planets 50 --n-samples 1000
 ```
 
 ### Expected Console Output (Ablation)

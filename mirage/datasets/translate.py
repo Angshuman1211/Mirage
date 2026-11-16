@@ -6,7 +6,7 @@ translated DISTRIBUTION against real instrument noise (MMD, KL, mean shift).
 That is a distributional statistic, not a retrieval result, so on its own it
 cannot support a claim about whether learned translation helps INFERENCE. The
 v2 plan's outstanding Track-2 item needs a flow actually trained on translated
-spectra, which is what this transform makes possible. `run_cyclegan_ablation.py`
+spectra, which is what this transform makes possible. `probe_cyclegan_input_shift.py`
 reuses the existing flows and feeds them translated input at eval time instead,
 which tests whether a sim-trained flow survives shifted input, a different
 question.
