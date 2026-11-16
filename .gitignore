@@ -7,7 +7,12 @@ sbi-ear/
 
 # Data — never commit, download via scripts/download_mast.py and scripts/download_abc.py
 # (includes real JWST data e.g. data/jwst_wasp39b_oot/ — >100MB files, D11 → Zenodo)
-data/
+# EXCEPTION: the three reduced spectra are 356 KB in total and both tracks need them
+# (Track 2's V7 and V3 are blocked without them), so they are tracked by rule rather
+# than by `git add -f`. This needs `data/*`, not `data/`: git does not descend into an
+# excluded DIRECTORY, so a negation under a plain `data/` line silently does nothing.
+data/*
+!data/jwst_*_spectrum.csv
 
 # Model checkpoints and training outputs
 checkpoints/
