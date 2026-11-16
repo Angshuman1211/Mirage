@@ -1154,3 +1154,166 @@ The pipeline detects a 44 ppm shape change from opacity data while reporting 8.9
 **The radius shift was predicted before the retrieval ran.** `h8_compare.py` put the forward-model-only radius offset at -0.00055 RJ; the independent retrieval returned -0.00067 RJ. That is an out-of-sample confirmation that the forward-model comparison was measuring the right thing, and it is worth keeping as evidence that the cheap test can stand in for the expensive one in future.
 
 **It also re-proves G4c on an independent code.** The literature 1.20 RJ sits inside the TauREx 68% interval [1.1945, 1.2001] and OUTSIDE the pRT one [1.1933, 1.1996], a flip driven by 0.0004 RJ. In sigma the two codes agree exactly: 1.0 sigma above the mean for TauREx, 1.1 for pRT. This is the second independent demonstration that a binary containment test on this value returns whatever the noise gives, and that radius agreement must be stated in sigma. Do not report the containment flip as a disagreement between the codes, because it is not one.
+
+---
+
+### P6-D20 — A6 delivered, and it turned up a cost argument that runs the wrong way: at this problem size amortization is strictly more expensive than nested sampling [Phase 6, 2026-11-15, MAJOR]
+
+**Problem.** A6 is the inference-side manuscript pass, four asks from `08_work_split_v2.md`: delete "exhaustively", delete "unchanged across targets", rewrite the identifiability framing, and quantify the per-target NS cost so the lost amortization is visible. Three are edits. The fourth needed a measurement, and the measurement did not say what the paper assumes.
+
+**Deliverable.** `Documentation/A6_inference_blueprint.md`, cover-in-this-order points rather than prose, per the blueprint convention.
+
+**Finding 1, the identifiability concession is sharper than A6 assumed.** A6 says to concede that Welbanks and Madhusudhan characterised the radius/reference-pressure degeneracy. They did, and their conclusion is that the degeneracy "has little effect on abundance estimates" and that the choice between the two is "inconsequential". **But that result is conditional on one of the pair being free**, which it is in all of their own retrievals, and their actual conclusion is that freeing both is redundant. **The published MIRAGE setup freed neither.** Verified in code rather than assumed: `scripts/taurex_forward.py:78` hardcodes `atm_max_pressure=1e6` and `scripts/taurex_retrieve.py:115-127` never enables a reference-pressure fit in any arm. So the configuration that failed is not one the retrieval literature uses, and the contribution is not "radius matters" but **amortization converts a parameterisation choice into a structural commitment, because theta is frozen before any target exists.** That is a stronger claim than the concession A6 asked for.
+
+Citation note. The venue is **The Astronomical Journal, 157, 206 (2019)**, DOI `10.3847/1538-3881/ab14de`, resolved rather than recalled. The arXiv comment field and the ar5iv header both say "ApJ" and **both are wrong**, so do not copy the venue from either.
+
+**Finding 2, the per-target reference cost, measured.** `data/real_ess/ns_wasp96_timing.wall`.
+
+| run | cost |
+|---|---|
+| TauREx NS, WASP-96b, 90 bins, 7 params, 150 live, alone on the laptop CPU | **5 min 24 s** |
+| same target and settings through petitRADTRANS | 23.7 min |
+| the A5 live-point sweep, 150/300/600/1000, four in parallel on one laptop | 50 min total |
+
+The timing run also independently reproduced the anchor, radius 1.1970 against 1.1972 and T 688.0 K against 682.9 K, so it doubles as a reproducibility check. **The contended per-run times from the A5 sweep are not quotable as single-run costs**: the 150-live run took 19.5 min inside the parallel sweep against 5.4 min alone, a 3.6x contention penalty.
+
+**Decision, and it is uncomfortable. The "nested sampling is unaffordable" premise cannot carry the motivation for amortization at this problem size, and the manuscript should say so rather than let a referee find it.** G9's revival argument rests on NS being something the field cannot afford. Ours costs 5.4 minutes. Against that, one H9 arm trained for **0.59 h**, 225 epochs at 9.4 s/epoch on the CUDA box (`configs/h9_rad_cov_s42/history*.csv`), and that **excludes simulating the training set**, which is the larger hidden cost. Training alone is therefore about **6.5 target-equivalents of nested sampling before the training data exists**. And the OT calibration needs an NS anchor per target, so the amortized route does not replace the per-target cost, it **adds** training on top of it. **At three targets amortization is strictly more expensive than just running nested sampling.**
+
+Under framing B this is an asset rather than a wound. It is a genuine negative result about amortized retrieval at small catalogue size, and it reads as rigour when stated and as a gap when a referee states it first.
+
+**Do not reuse the 498 single-core hours figure as ours.** It is real (Exoformer, A&A 709 A17, 2026, Sect. 5.2 and Table 3) but it is their uniform-prior WASP-39b retrieval on one core. Quoting it as MIRAGE's cost **overstates ours by about 5500x** and is checkable by anyone in one minute.
+
+**The defensible position, two parts.** First, the per-target cost argument does not hold at three targets, so the motivation has to come from catalogue scale, Ariel's thousand-target class, or from resolutions where NS cost grows. Second, amortization survives only if the calibration transfers to a new target without its own anchor. That second part was written down as **untested**, deliberately phrased as untested rather than unlikely. **It is now tested, as H11, see P6-D21.**
+
+---
+
+### P6-D21 — H11 answered, negative: the OT calibration does not transfer to a new target, so the last conditional holding up amortization fails [Phase 6, 2026-11-15, MAJOR]
+
+**Problem.** P6-D20 left exactly one conditional standing. The per-target NS anchor is cheap, so amortization cannot be motivated on NS cost at three targets. What remained was that amortization survives **if the calibration transfers to a new target without that target's own anchor**, because then the anchor is paid once rather than per target. That was deliberately written down as untested rather than unlikely. This tests it.
+
+**It is also the non-circular version of the calibration evaluation that P5-D5 demanded.** The OT pushforward of N(mu_f, S_f) onto N(mu_n, S_n) **is** N(mu_n, S_n), so scoring it against the anchor it was fitted to cannot fail. Here the donor target supplies the calibration and the recipient's anchor is held out, so every off-diagonal cell is an honest out-of-sample measurement.
+
+**Design.** Three targets, each with both a flow posterior and an NS anchor, giving a 3x3 leave-one-out matrix. The calibration is expressed **dimensionlessly** so that wildly different scales cannot break transfer on units alone: `s = (mu_n - mu_f)/sd_f` is the bias in flow-sd units and `k = sd_n/sd_f` is the width deflation. Modes, each asking **less** of the calibration than the one before, so a failure is attributable rather than merely reported: M1 the literal absolute pushforward, M2 bias plus widths on the recipient's own centre, M3 widths only, M4 leave-one-out **pooled** widths, M5 a single scalar for all seven parameters. `scripts/h11_ot_transfer.py`, `h11_w2.py`, `h11_seedcheck.py`, figure `fig_h11_transfer.py`.
+
+**A confound I introduced and caught before it reached the result.** The first pass used the published WASP-39b arm, `noisecond_rad_cov`, against the two per-planet `rad_nocond` arms. `h11_seedcheck.py` shows those architectures carry **different calibrations on the same planet against the same anchor** (radius deflation 0.138 against 0.075, temperature bias -5.56 against -1.05 flow sd), so that comparison charged an architecture difference to the target. Rerun with `rad_nocond` on all three. **The mismatched run is not reported as a result**, and one finding it produced, that transferred proposals have zero prior support, **was an artefact of the mismatch and is withdrawn**. `H11_W39_ARM=cov` reproduces it as a negative control on the test itself.
+
+**Headline. Mean marginal JS to the held-out anchor, matched architecture.**
+
+| donor relationship to recipient | n | mean JS | range |
+|---|---|---|---|
+| same target, same training run (**circular**, what P5-D5 objected to) | 3 | **0.0254** | 0.0202-0.0283 |
+| same target, **different random seed** | 6 | 0.1073 | 0.0367-0.1602 |
+| **different target** | 6 | 0.2632 | 0.2182-0.3364 |
+| no calibration at all | 3 | 0.2693 | 0.2024-0.3414 |
+
+**Transferred to a new target the calibration recovers 2.5 percent of the benefit it shows on the target it was fitted to.** Transferred only across training seeds of the same planet, against the same anchor, it recovers 73 percent. **The calibration is substantially a property of the individual training run, and almost entirely not a property of the method.**
+
+**Where the transfer fails, measured without a saturating metric.** Many JS cells sit at the ln2 = 0.6931 ceiling, so the ranking was re-derived with 2-Wasserstein distance, which has no ceiling and splits **exactly** into orthogonal location and shape parts (W2^2 = |dmu|^2 + Bures^2). All in units of the recipient anchor's own sd.
+
+| recipient | RAW loc | RAW shape | pooled anchor-free loc | pooled shape | with own anchor (total) |
+|---|---|---|---|---|---|
+| WASP-39b | 12.87 | 18.35 | **12.87** | 3.30 | 0.70 |
+| WASP-96b | 4.94 | 12.53 | **4.94** | 1.10 | 0.74 |
+| K2-18b | 5.82 | 15.58 | **5.82** | 2.15 | 0.83 |
+
+**The anchor-free calibration removes 85 to 97 percent of the shape error and exactly none of the location error.** Location is unchanged to two decimals because no width correction can move a mean. And location is what is left over: the calibrated-without-anchor posterior still sits **5 to 13 anchor sigmas** from the reference, against 0.7 to 0.8 with the target's own anchor. **The transferable half of the calibration is the half that does not matter.**
+
+The pooled M4 and single-scalar M5 confirm it from the other side. M5 is one number, about 0.24 to 0.30, and it captures most of what the full per-parameter pooled correction gets. So the transferable content of the calibration is approximately **"the flow is three to four times too wide"**, which is a hyperparameter, not an amortized anchor. Net benefit across the three targets is a wash: M4 against doing nothing is -0.052 on WASP-39b, +0.001 on WASP-96b, +0.029 on K2-18b.
+
+**Is the across-target spread real, or retraining noise?** The obvious objection is that the three flow posteriors come from separately trained networks. The seed replicas bound it: across three seeds of one arm on one target against one anchor, the calibration spread is **k 0.042 and s 0.155**, against **k 0.30 and s 0.60** across targets. So the across-target variation is **7.1x and 3.9x the retraining noise floor**. Target-driven, confound closed.
+
+**Decision. H11 is answered and negative. The conditional in P6-D20 fails, and with it the last structural argument for amortization at this scale.** There is no honest version of "fit the calibration once and apply it to new targets". Write it as a result rather than a limitation.
+
+**The sharpest form of it, and the one for the manuscript.** Whether an anchor-free width correction helps at all is decided by whether the flow's mean error is small compared with the width being shrunk, and **that quantity is `|mu_f - mu_n|`, which cannot be known without the anchor**. So the anchor-free correction cannot be validated anchor-free. That is a catch-22 and it is the structural obstacle, not a sample-size complaint. At n=3 the one target where the correction hurts is the one whose flow mean is furthest off, 12.9 anchor sigmas against 4.9 and 5.8, but do not claim a monotone relationship from three points.
+
+**Two incidental findings, both verified by running rather than by reading.**
+1. **`scripts/ot_calibrate.py` cannot run on K2-18b and does not say so.** `PRIOR_LO/PRIOR_HI` are hardcoded to the hot-Jupiter box, radius [0.8, 1.6] and T [300, 2500], while K2-18b is a cold sub-Neptune at radius 0.229 and T 259. Run on it the script prints the mean shifts, reports **`0/2000 in-prior draws`**, saves an empty theta array and still prints "forward next". Zero draws is not treated as an error. The published calibration was therefore only ever demonstrable on the hot Jupiters.
+2. **`data/real_ess/real_ess_forward.npz` is a stale K2-18b artefact under the generic WASP-39b name**, shape (2000, 150) against WASP-39b's (1000, 52). The P5-D6 generic-filename hazard reached the forward files too, not just the sample files. It **fails loudly** (IndexError on the bin mask, verified) rather than silently, so nothing published is affected, but it should be regenerated or deleted.
+
+**The functional half of H11, and it found something the divergences could not.** Marginal JS saturates at ln2, so the test was repeated with importance-sampling ESS on each recipient's real spectrum, which is the quantity the calibration was built to fix (P3-D12: the raw flow proposal collapses to ESS about 5 because it is overdispersed). Five arms per recipient, 2000 draws each, `inflate=1.5` on every Gaussian arm so the published recipe is applied uniformly rather than a kinder one. 15 TauREx forward runs, `scripts/h11_ess.py`.
+
+**First, the machinery was validated against the published artefacts.** Re-running `ot_calibrate.py --compute` on the four stored published calibration runs gives:
+
+| published run | N | ESS | epsilon |
+|---|---|---|---|
+| `ot_cal` | 6312 | 12.4 | 0.20% |
+| `ot_cal_inf10` | 2678 | 14.7 | 0.55% |
+| `ot_cal_inf15` | 2384 | 10.9 | 0.46% |
+| `ot_cal_inf20` | 2128 | 14.5 | 0.68% |
+
+**The published OT calibration never produced usable importance sampling, and the script says so itself.** All four print its own lowest verdict, **"ESS still low"**, against its own stated thresholds of 500 and 50. Component 4's purpose, in its own docstring, is "using that calibrated proposal for importance sampling on the real spectrum, efficient IS". That was not achieved on the target it was fitted to, in the published run, with no transfer involved. H11's circular arms reproduce the same magnitude (ESS 18.0, 18.9, 5.3), which validates the pipeline.
+
+**The ESS matrix. Every arm, 68% bootstrap CI over the draws in brackets.**
+
+| recipient | raw | circular (SELF) | transferred M2, donor 1 | donor 2 | pooled anchor-free |
+|---|---|---|---|---|---|
+| WASP-39b | 5.2 [4.4, 8.2] | 18.0 [14.9, 43.0] | 11.0 [9.2, 15.3] | 3.1 [2.5, 5.7] | 4.7 [3.5, 7.0] |
+| WASP-96b | 9.1 [7.9, 14.3] | 18.9 [16.8, 33.5] | 3.3 [2.8, 6.0] | 2.8 [2.8, 45.5] | 13.6 [12.1, 26.0] |
+| K2-18b | 11.3 [9.5, 19.6] | 5.3 [4.9, 7.8] | 1.3 [1.3, 5.7] | 31.3 [28.1, 36.9] | 2.7 [2.6, 7.9] |
+
+**Read the aggregate, not the cells.** Every value is between 1.3 and 31.3 out of 1000 to 2000 draws, so **epsilon runs 0.06% to 1.56% and no arm is usable**. The bootstrap intervals are wide and overlapping, one spanning [2.8, 45.5], so **individual cells must not be ranked against each other** and the single best number, 31.3 for a hot-Jupiter calibration applied to a cold sub-Neptune, should not be reported as a result. The defensible comparison is the mean over the six transferred cells, **8.8 against 8.5 for no calibration at all**, which is the same wash the divergences gave.
+
+**So the functional test does not independently confirm the transfer failure. It does something more useful: it shows the metric cannot discriminate because nothing works**, and it supplies a separate finding that the divergences hid. **Distributional agreement and importance-sampling efficiency are different claims and the manuscript must not conflate them.** Circularly, the calibration achieves JS 0.025, excellent agreement, while delivering ESS 18, unusable sampling. Both are true of the same object. The JS number is what a reader would take as the calibration working, and it is not what the calibration was for.
+
+One ESS cell is worth a sentence on its own: **K2-18b's own circular calibration (5.3) is worse than its uncalibrated flow (11.3)**, so even fitted on the target's own anchor the calibration can damage the proposal. At these magnitudes that is within noise, so state it as a caution against reading the circular arm as a guaranteed improvement, not as a measured regression.
+
+**Verified non-issue, recorded so it is not re-derived.** `real_ess.py:114-115` stores `log_q` in the flow's SCALED space while storing `theta` in physical space, with no Jacobian. Every scaler in `fm4ar/datasets/theta_scalers.py` is affine (Identity, MeanStd, MinMax), so the missing Jacobian is a per-arm CONSTANT, and a constant in `log_g` cancels exactly under self-normalised weights. ESS is therefore unaffected and cross-arm ESS comparison is valid. It would NOT be safe to use `log_q` as an absolute density, for an evidence estimate or any comparison that does not self-normalise.
+
+---
+
+### P6-D22 — A2 delivered on all three targets: the anchor-free calibration works, recovers about a seventh of the circular arm's apparent gain, and proves the circular arm was over-narrowing [Phase 6, 2026-11-16, MAJOR]
+
+**What A2 had to do.** P5-D5 killed the published OT calibration for circularity. P6-D21 (H11) killed the obvious repair, transferring a calibration between targets, and showed the calibration is specific to both the target and the individual training run. That leaves injections as the only way to fit a calibration without an anchor. A2 is that fit, `scripts/a2_inject_calibrate.py`, four stages (`--moments --fit --apply --score`), 250 injections per target at 256 posterior draws each, Tier-1 noise, no nested sampling anywhere in the estimator.
+
+**The estimator lands in H11's units on purpose.** Under correct calibration the true label is a draw from its own posterior marginally over the prior, so the pulls `z = (theta - mu)/sd` have mean 0 and variance 1. Then `s_inj = mean(z)` and `k_inj = std(z)` are the same two dimensionless quantities H11 defined against the NS anchor, which makes "does the injection-fitted calibration agree with the anchor-fitted one" a direct per-parameter comparison rather than an analogy.
+
+**Two finite-sample biases were found and corrected BEFORE any result was read, and the correction matters.** With m posterior draws per injection, `var(z_observed) = k^2 + (1 + s^2/2)/m`. The 1/m term comes from estimating the posterior mean, the `s^2/2m` term from dividing by a noisy sd. At m=256 and a radius-like k=0.075 the first term alone is comparable to the signal and reads 1.37x too high; the second inflated a planted k=0.300 to 0.352. `scripts/a2_validate_estimator.py` plants seven known (s, k) pairs and recovers them. Uncorrected, 4 of 7 planted values fell outside their intervals. Corrected, bias is at most 0.7% on all seven and coverage is 58-69% against a nominal 68%. **The `k_uncorr` column is printed beside `k_inj` so the size of this correction stays visible.**
+
+**Result 1, the measurement. Injections demand far less deflation than the real anchor does, on every target and every parameter.**
+
+| target | median k ratio inj/anchor | range | worst parameter | bias gap, true-posterior sigmas |
+|---|---|---|---|---|
+| WASP-39b | 3.06x | 1.39-7.85x | logH2O 7.85x | 0.05 inj vs 2.18 real, **47x** |
+| WASP-96b | 1.85x | 1.22-5.02x | radius 5.02x | 0.04 inj vs 0.74 real, **18x** |
+| K2-18b | 2.39x | 1.39-5.67x | logCH4 5.67x | 0.16 inj vs 1.26 real, **8x** |
+
+Radius is the worst or near-worst parameter on all three (3.83x, 5.02x, 5.41x), which is consistent with P3-D11 making the radius the fix in the first place. **No point on any target falls below the diagonal** (`data/a2/fig_a2_injection.png`, panel A). The simulator reproduces the direction of the miscalibration and badly understates its size.
+
+**The gap is not the noise amplitude.** Re-fitting WASP-39b on the stored Tier-0 artefacts gives median k = 0.916 at training-range sigma, 0.712 at published sigma, against 0.225 demanded by the real anchor. Tier0 to Tier1 is 1.29x, Tier1 to anchor is 3.15x. **Noise amplitude accounts for under a fifth of the gap.** With H8 (P6-D19) having put the forward model at 0.07 sigma, the residual is narrowed to real-spectrum information content, reduction systematics, or the cloud and vertical-structure physics H8 could not test.
+
+**Homogeneity was checked, not assumed.** Re-fitting on the 20% of injections nearest the real posterior shifts k by a median of 9% / 7% / 3% and s by 0.12 / 0.05 / 0.11 flow sd. A pooled (s, k) is defensible for these targets. Robust duplicates (median, IQR/1.349) are reported beside the moment versions because the pulls are not light-tailed: excess kurtosis above 1 on radius and logCO on two of three targets.
+
+**Result 2, end to end. Same real spectrum, same NS anchor, same scoring, same `inflate=1.5`. `data/a2/a2_scores.json`.**
+
+| target | route | mean JS | ESS / 2000 | 68% CI |
+|---|---|---|---|---|
+| WASP-39b | none | 0.3414 | 5.2 | [4, 8] |
+| | H11 pooled transfer | 0.3935 | - | - |
+| | circular (anchor-fitted) | 0.0202 | 18.0 | [15, 43] |
+| | **injection-fitted (A2)** | **0.3110** | **25.2** | [21, 34] |
+| WASP-96b | none | 0.2024 | 9.1 | [8, 14] |
+| | H11 pooled transfer | 0.2009 | - | - |
+| | circular (anchor-fitted) | 0.0277 | 18.9 | [17, 34] |
+| | **injection-fitted (A2)** | **0.1702** | **65.8** | [53, 96] |
+| K2-18b | none | 0.2642 | 11.3 | [9, 20] |
+| | H11 pooled transfer | 0.2350 | - | - |
+| | circular (anchor-fitted) | 0.0283 | 5.3 | [5, 8] |
+| | **injection-fitted (A2)** | **0.2251** | **24.4** | [20, 39] |
+
+**On marginal agreement A2 is a small positive.** Taking the circular arm's JS as the achievable gain, A2 recovers **9.5% / 18.4% / 16.6%**. The H11 pooled transfer recovers **-16.2% / 0.8% / 12.4%**, so it is worse than doing nothing on WASP-39b and indistinguishable from it on WASP-96b. **A2 is the only anchor-free route that improves on no calibration on all three targets**, and that comparison, not the comparison with the circular arm, is what decides whether A2 was worth building.
+
+**On sampling efficiency A2 is a clear positive, and this is the stronger half.** A2's ESS CI is disjoint from the uncalibrated flow's on all three targets, and disjoint from the circular arm's on two of three (WASP-96b and K2-18b), matching it on WASP-39b. **WASP-96b's A2 arm at ESS 65.8 is the only arm anywhere in this project to clear `ot_calibrate.py`'s own "usable, ESS > 50" threshold**, against 10.9-14.7 for the four stored published runs.
+
+**Result 3, and the one that matters most for the manuscript. The anchor-fitted calibration over-narrows, and that is what circularity looks like from the functional side.** On K2-18b the circular arm has the best JS of any route (0.0283, near-perfect marginal agreement) and an ESS of 5.3 against 11.3 for not calibrating at all. A calibration that reproduces the anchor's marginals while being a significantly worse importance proposal than no calibration is a calibration that was fitted to those marginals. **This corroborates P5-D5 from an independent direction**, using a functional criterion rather than the structural argument that the Gaussian OT pushforward of the flow onto the anchor simply is the anchor.
+
+**Correction to P6-D21.** That entry recorded the K2-18b circular-versus-raw gap and said "at these magnitudes that is within noise, so state it as a caution ... not as a measured regression." **That was too cautious.** The 68% bootstrap intervals, [4.9, 7.8] against [9.5, 19.6], are disjoint. The correct statement is that the degradation is statistically resolved but occurs between two unusable proposals, so it should be reported as evidence of over-narrowing rather than as a practical loss.
+
+**Honest limits on the A2 claim, to be carried into the manuscript.**
+1. **A2 does not repair the calibration.** It recovers roughly a seventh of the circular arm's apparent gain. The remaining 80-90% was never calibration. G3 stays closed as a repair.
+2. **A2's ESS advantage is partly mechanical.** Its proposals are wider (k 0.29-0.93) than the anchor-fitted ones (k 0.07-0.71), and wider proposals are better importance proposals. The defensible claim is about the failure mode of the anchor-fitted calibration, not that A2 recovered the true posterior.
+3. **ESS remains low in absolute terms** on five of six calibrated arms, epsilon 1.2-3.3%. Only WASP-96b clears the usable bar.
+4. **A2 runs where the published method structurally cannot.** `ot_calibrate.py` gets 0/2000 in-prior draws on K2-18b because its prior box is hardcoded to hot Jupiters (P6-D21). A2 has no such restriction.
+
+**Reproducibility notes.** TauREx is installed in the `mirage-taurex` environment, not `mirage`; the forward stage fails with `ModuleNotFoundError` if run under the latter. `scripts/taurex_forward.py:200` printed a hardcoded "WASP-39b geometry" label for every planet while line 184 selected the correct per-planet geometry throughout, so no result was affected; the label is fixed. `--score` now persists to `data/a2/a2_scores.json` so the figure and this entry read one artefact rather than the console.
+
+**Decision.** **A2 is kept and becomes the quantitative core of the v2 sim-to-real argument under Framing B.** The paper does not claim a fixed calibration. It claims a measured sim-to-real gap (3.06x / 1.85x / 2.39x in width, 47x / 18x / 8x in bias), an attribution that rules out noise amplitude (under a fifth) and the forward model (0.07 sigma, P6-D19), and an independent functional demonstration that the published calibration was fitted to its own target. **G3 and G9 are closed by measurement, not by repair.**
