@@ -100,6 +100,6 @@ for s in ("top", "right"):
     axA.spines[s].set_visible(False); axB.spines[s].set_visible(False)
 
 fig.tight_layout()
-out = A2 / "fig_a2_injection.png"
+out = Path("figures") / "fig_a2_injection.png"   # all figures live in figures/
 fig.savefig(out, dpi=200)
 print(f"[fig] {out}")

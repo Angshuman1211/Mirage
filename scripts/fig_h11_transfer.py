@@ -121,7 +121,7 @@ def main():
     axB.set_ylim(0, 0.75)
 
     fig.tight_layout()
-    out = Path("data/h11/fig_h11_transfer.png")
+    out = Path("figures/fig_h11_transfer.png")   # all figures live in figures/
     fig.savefig(out, dpi=200)
     print(f"[fig] {out}")
     for k, v in classes.items():
