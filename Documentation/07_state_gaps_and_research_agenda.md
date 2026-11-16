@@ -264,6 +264,17 @@ implied. **Robust across 3 training seeds, 2 arms, 2 tiers and 3 targets, 14 cel
 monotone four-point dose-response in the mismatch factor; the remainder is intrinsic.
 `scripts/sbc_report.py`, `data/sbc/`.
 
+**G3 FINAL, 2026-11-16 (P6-D22). The non-circular calibration was not only validated, it was
+BUILT, and it quantifies the sim-to-real gap.** A2 fits the calibration on injection labels
+alone, no nested sampling anywhere, in the same (s, k) units H11 used against the anchor, so
+the two are directly comparable per parameter. Injections demand far less width deflation than
+the real anchor on every parameter of every target, median ratio **3.06x / 1.85x / 2.39x**, with
+bias differing by **47x / 18x / 8x** in true-posterior sigmas. Radius is the worst or near-worst
+parameter on all three. The injection-fitted calibration is **the only anchor-free route that
+beats doing nothing on all three targets**, recovering 9.5% / 18.4% / 16.6% of the circular
+arm's apparent gain. **G3 closes by measurement, not by repair**, and the gap it measures is now
+the quantitative core of the Framing B argument. `scripts/a2_inject_calibrate.py`, `data/a2/`.
+
 **G3b. The conditioning verdict is evaluator-dependent, but the two effects are not the same
 size** (P6-D11, correcting P6-D8). Against injection labels cov is mildly better calibrated,
 1.6x the seed spread on Tier 0 and 2.9x on Tier 1, and consistently so only on the joint
@@ -370,6 +381,28 @@ and Table 3, for a uniform-prior retrieval on one CPU core. That is THEIR cost, 
 and A5 part 1 measured ours at 50 minutes wall clock for four WASP-96b runs in parallel on
 this laptop, so do not reuse 498 h as a MIRAGE compute estimate.)
 
+**G9 UPDATE 2026-11-15, and the revival route is now closed by measurement rather than by
+assumption.** A single serial anchor costs **5 min 24 s** (P6-D20), so NS is not unaffordable at
+this scale; one trained arm costs 0.59 h, about 6.5 target-equivalents, before the training set
+is simulated. And H11 (P6-D21) shows the calibration does not transfer to a new target, so the
+amortized route does not replace the per-target anchor, it **adds** training on top of it. **At
+three targets amortization is strictly more expensive than nested sampling.** The revival route
+in 6.4 is therefore conditional on catalogue scale, Ariel's thousand-target class, or on a
+calibration that works without a per-target anchor, which H11 has now shown this one does not.
+Under framing B this is a result to state, not a limitation to hedge.
+
+**G9 FINAL, 2026-11-16 (P6-D22). The last conditional is now resolved, and it does not change
+the verdict.** The G9 update above left amortization alive on one condition, "a calibration that
+works without a per-target anchor". A2 built exactly that, so **the condition is met in kind but
+not in degree**. The anchor-free calibration exists, is the only such route that beats doing
+nothing on all three targets, and is a better importance proposal than the uncalibrated flow
+everywhere (disjoint 68% CIs), with WASP-96b at ESS 65.8 the only arm in this project to clear
+`ot_calibrate.py`'s own usable threshold of 50. But it recovers about a seventh of the circular
+arm's apparent gain, and five of six calibrated arms stay at epsilon 1.2 to 3.3%. **The cost
+argument of P6-D20 is untouched and still decides this**: at three targets amortization remains
+strictly more expensive than nested sampling, whether or not the calibration needs an anchor.
+**G9 closes.** The catalogue-scale revival in 6.4 survives on scale alone, not on calibration.
+
 **G10. Radius containment is tight, not comfortable** (0.93 and 0.87 of half-width).
 
 **G11. `corr_similarity` does not separate the arms** and points the other way from MMD.
@@ -465,6 +498,28 @@ end to end: mean JS between the two codes' posteriors is 0.0116 nats against a f
 0.352 to 0.428, so the code gap is 0.033x the flow gap. Every parameter agrees inside 0.29 sigma.
 The radius shift it returned, -0.00067 RJ, matches the -0.00055 RJ the forward-model test
 predicted before it ran.
+
+**H11. ANSWERED 2026-11-15 (P6-D21), negative.** The hypothesis was that the OT calibration
+transfers to a new target without that target's own NS anchor, which is the last conditional
+under which amortization survives (P6-D20 measured the per-target anchor at 5 min 24 s, so NS
+cost cannot carry the motivation). It does not transfer. In a 3x3 leave-one-out matrix with the
+recipient's anchor held out, mean JS runs 0.0254 for the circular same-run case, 0.1073 across a
+change of random seed on the same planet, and 0.2632 across targets, against 0.2693 for no
+calibration at all. **Transfer recovers 2.5 percent of the benefit the calibration shows on the
+target it was fitted to.** In 2-Wasserstein, which does not saturate, an anchor-free pooled
+correction removes 85 to 97 percent of the SHAPE error and exactly none of the LOCATION error,
+leaving the posterior 5 to 13 anchor sigmas out against 0.7 to 0.8 with its own anchor. The
+transferable content is approximately "the flow is three to four times too wide", which is a
+hyperparameter rather than an anchor. **Structural obstacle, not a sample-size complaint:**
+whether the anchor-free correction helps is decided by `|mu_f - mu_n|`, which cannot be known
+without the anchor, so it cannot be validated anchor-free. The functional leg (IS-ESS on each
+real spectrum, 15 TauREx forward runs) adds a separate finding: **no arm produces usable
+importance sampling at all**, epsilon 0.06 to 1.56 percent, and re-running the four STORED
+PUBLISHED calibration artefacts gives ESS 10.9 to 14.7 with `ot_calibrate.py`'s own verdict
+**"ESS still low"** against its own thresholds of 500 and 50. So the published calibration
+never delivered the efficient importance sampling it exists to provide, circularly, on the
+target it was fitted to. **Distributional agreement and IS efficiency are different claims:**
+the circular arm reaches JS 0.025 (excellent) and ESS 18 (unusable) on the same object.
 
 **H1. CycleGAN domain mismatch.** Run **once** as a mechanism check for G7, then retire CycleGAN
 as a method and keep it as a negative control. A single bootstrapped spectrum was never a domain.

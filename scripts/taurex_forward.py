@@ -197,7 +197,7 @@ def forward_npz(npz_path, mode="auto", planet="wasp39"):
         print(f"  {n_bad}/{len(theta)} samples unphysical (abundances sum>1) → 0 weight")
     out = npz_path.rsplit("samples", 1)[0] + "forward.npz"
     np.savez(out, model_spec=specs)
-    print(f"[forward] {len(theta)} spectra (WASP-39b geometry) → {out}")
+    print(f"[forward] {len(theta)} spectra ({planet} geometry) → {out}")
 
 
 if __name__ == "__main__":

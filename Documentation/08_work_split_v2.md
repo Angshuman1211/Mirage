@@ -101,6 +101,58 @@ checked coverage against. With A1 in hand the labels are independent, and the sa
 becomes legitimate. "Our validation was circular, here is the non-circular rebuild" is a far
 better paper than "we removed the contribution".
 
+**A2 SURVIVES H11, and H11 is the argument for it. Noted 2026-11-15 (P6-D21).** Read quickly,
+P6-D21 looks like it kills A2 as well. It does not, and the distinction is worth stating
+because it decides whether A2 is still worth building. H11 killed **"fit the calibration on
+target A's anchor and apply it to target B"**. A2 proposes **"fit the calibration on target
+B's own injection labels and apply it to target B"**, which needs no nested sampling at all,
+only forward simulations and flow evaluations. H11 found the calibration is specific to both
+the target and the individual training run, so a calibration has to be derived per target and
+per trained model. **Injections are the only way to do that without an anchor**, so H11 makes
+A2 the right next move rather than a dead one.
+
+**The two measurements agree in sign, which is the encouraging part.** A1 found
+under-confidence on injections, intervals too WIDE (P6-D8, coverage 0.851 and 0.806 against a
+nominal 0.68). H11 finds the flow over-dispersed against the real-data anchor, deflation
+k < 1 on every parameter of every target. Same direction, measured two independent ways.
+
+**And one quantitative warning to carry into A2, so it is not a surprise.** Reading the A1
+coverage as a Gaussian width inflation, 0.851 at the 68 percent interval implies roughly
+1.4x too wide. H11's real-data deflations imply 1.5x to 13x, with **radius the worst at about
+13x**. So an injection-fitted calibration looks likely to recover the generic inflation and to
+**badly under-correct radius**, which is the one parameter the P3-D11 radius story depends on.
+Treat "does the injection-fitted k match the real-data k, per parameter" as A2's first
+measurement rather than its last. The Gaussian reading of a multi-parameter coverage number is
+an estimate, not a measurement, so do not quote 1.4x as a result.
+
+**DONE 2026-11-16 (P6-D22). All three targets.** `scripts/a2_inject_calibrate.py`, 250
+injections per target at 256 draws each, Tier-1 noise, no nested sampling in the estimator.
+Figure `data/a2/fig_a2_injection.png`, scores `data/a2/a2_scores.json`.
+
+**The warning above was right, and it was written before the measurement.** Injections demand
+far less deflation than the real anchor on every parameter of every target, median ratio
+3.06x / 1.85x / 2.39x, and **radius is the worst or near-worst parameter on all three** at
+3.83x, 5.02x and 5.41x. The predicted under-correction of the one parameter the P3-D11 story
+depends on is exactly what happened.
+
+**What A2 delivered, in one line each.**
+- **It is the only anchor-free route that beats doing nothing on all three targets**, recovering
+  9.5% / 18.4% / 16.6% of the circular arm's apparent JS gain. The H11 pooled transfer recovers
+  -16.2% / 0.8% / 12.4%, so it is worse than nothing on WASP-39b.
+- **It is a better importance proposal than the uncalibrated flow on all three** (disjoint 68%
+  CIs) and better than the circular arm on two of three. WASP-96b at ESS 65.8 is the only arm
+  anywhere in this project to clear `ot_calibrate.py`'s own usable threshold of 50.
+- **It shows the anchor-fitted calibration over-narrows.** On K2-18b that arm has the best JS of
+  any route (0.0283) and an ESS of 5.3 against 11.3 for no calibration, disjoint intervals. That
+  corroborates P5-D5 functionally, independently of the structural pushforward argument.
+- **It attributes the gap.** Tier 0 to Tier 1 to real anchor is 0.916 to 0.712 to 0.225, so
+  noise amplitude accounts for under a fifth. With H8 at 0.07 sigma the forward model is out too.
+
+**A2 does NOT repair the calibration and must not be written as if it does.** It recovers about
+a seventh of the circular gain; the rest was never calibration. **G3 and G9 close by measurement,
+not by repair.** Carry the four honest limits in P6-D22 into the manuscript, in particular that
+A2's ESS edge is partly mechanical because its proposals are simply wider.
+
 ### A3. H5, the noise-proxy test. (3 to 5 days)
 
 Condition on three inputs: Sigma-hat from OOT flux, Sigma-hat from pseudo-transit depth
@@ -152,6 +204,23 @@ Drop "exhaustively" and "unchanged across targets". Rewrite the identifiability 
 concede that the backbone's prior already infers R_P, that Welbanks and Madhusudhan (2019)
 characterised the degeneracy, and that a nuisance parameter fixed wrong is misspecification.
 State per-target NS cost so the lost amortization is visible (G9).
+
+**DONE 2026-11-15 (P6-D20). Blueprint at `Documentation/A6_inference_blueprint.md`.** All four
+asks covered. The two deletions are mechanical. The identifiability rewrite got **sharper**,
+not weaker: Welbanks and Madhusudhan's "the degeneracy is harmless" result is conditional on
+one of radius/reference-pressure being free, and the published MIRAGE setup freed **neither**
+(verified in code at `taurex_forward.py:78` and `taurex_retrieve.py:115-127`), so the
+contribution is that amortization turns a parameterisation choice into a structural commitment.
+
+**The fourth ask returned a number that runs against the paper's own motivation.** A serial
+per-target anchor costs **5 min 24 s**, so "NS is unaffordable" cannot motivate amortization
+here, and with training at 0.59 h plus a still-required per-target anchor, **at three targets
+amortization is strictly more expensive than nested sampling**. Own it as a negative result.
+
+**H11 then closed the one conditional that was left. DONE 2026-11-15 (P6-D21), negative.** The
+calibration does not transfer to a new target: 2.5 percent of the benefit it shows on the
+target it was fitted to, against 73 percent across a mere change of random seed. See A2 above,
+which H11 does **not** kill and in fact motivates.
 
 ---
 
