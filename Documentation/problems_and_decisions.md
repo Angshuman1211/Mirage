@@ -1342,7 +1342,7 @@ One ESS cell is worth a sentence on its own: **K2-18b's own circular calibration
 | WASP-96b | 1.85x | 1.22-5.02x | radius 5.02x | 0.04 inj vs 0.74 real, **18x** |
 | K2-18b | 2.39x | 1.39-5.67x | logCH4 5.67x | 0.16 inj vs 1.26 real, **8x** |
 
-Radius is the worst or near-worst parameter on all three (3.83x, 5.02x, 5.41x), which is consistent with P3-D11 making the radius the fix in the first place. **No point on any target falls below the diagonal** (`data/a2/fig_a2_injection.png`, panel A). The simulator reproduces the direction of the miscalibration and badly understates its size.
+Radius is the worst or near-worst parameter on all three (3.83x, 5.02x, 5.41x), which is consistent with P3-D11 making the radius the fix in the first place. **No point on any target falls below the diagonal** (`figures/fig_a2_injection.png`, panel A). The simulator reproduces the direction of the miscalibration and badly understates its size.
 
 **The gap is not the noise amplitude.** Re-fitting WASP-39b on the stored Tier-0 artefacts gives median k = 0.916 at training-range sigma, 0.712 at published sigma, against 0.225 demanded by the real anchor. Tier0 to Tier1 is 1.29x, Tier1 to anchor is 3.15x. **Noise amplitude accounts for under a fifth of the gap.** With H8 (P6-D19) having put the forward model at 0.07 sigma, the residual is narrowed to real-spectrum information content, reduction systematics, or the cloud and vertical-structure physics H8 could not test.
 
@@ -1350,28 +1350,41 @@ Radius is the worst or near-worst parameter on all three (3.83x, 5.02x, 5.41x), 
 
 **Result 2, end to end. Same real spectrum, same NS anchor, same scoring, same `inflate=1.5`. `data/a2/a2_scores.json`.**
 
-| target | route | mean JS | ESS / 2000 | 68% CI |
-|---|---|---|---|---|
-| WASP-39b | none | 0.3414 | 5.2 | [4, 8] |
-| | H11 pooled transfer | 0.3935 | - | - |
-| | circular (anchor-fitted) | 0.0202 | 18.0 | [15, 43] |
-| | **injection-fitted (A2)** | **0.3110** | **25.2** | [21, 34] |
-| WASP-96b | none | 0.2024 | 9.1 | [8, 14] |
-| | H11 pooled transfer | 0.2009 | - | - |
-| | circular (anchor-fitted) | 0.0277 | 18.9 | [17, 34] |
-| | **injection-fitted (A2)** | **0.1702** | **65.8** | [53, 96] |
-| K2-18b | none | 0.2642 | 11.3 | [9, 20] |
-| | H11 pooled transfer | 0.2350 | - | - |
-| | circular (anchor-fitted) | 0.0283 | 5.3 | [5, 8] |
-| | **injection-fitted (A2)** | **0.2251** | **24.4** | [20, 39] |
+| target | route | mean JS | ESS | N | epsilon | 68% CI on ESS |
+|---|---|---|---|---|---|---|
+| WASP-39b | none | 0.3414 | 5.2 | **1000** | 0.52% | [4, 8] |
+| | H11 pooled transfer | 0.3935 | - | - | - | - |
+| | circular (anchor-fitted) | 0.0202 | 18.0 | 2000 | 0.90% | [15, 43] |
+| | **injection-fitted (A2)** | **0.3110** | **25.2** | 2000 | **1.26%** | [21, 34] |
+| WASP-96b | none | 0.2024 | 9.1 | 2000 | 0.46% | [8, 14] |
+| | H11 pooled transfer | 0.2009 | - | - | - | - |
+| | circular (anchor-fitted) | 0.0277 | 18.9 | 2000 | 0.94% | [17, 34] |
+| | **injection-fitted (A2)** | **0.1702** | **65.8** | 2000 | **3.29%** | [53, 96] |
+| K2-18b | none | 0.2642 | 11.3 | 2000 | 0.56% | [9, 20] |
+| | H11 pooled transfer | 0.2350 | - | - | - | - |
+| | circular (anchor-fitted) | 0.0283 | 5.3 | 2000 | 0.27% | [5, 8] |
+| | **injection-fitted (A2)** | **0.2251** | **24.4** | 2000 | **1.22%** | [20, 39] |
+
+**The N column is not decoration. WASP-39b's uncalibrated arm has 1000 draws, every other
+cell has 2000**, inherited from H11's raw arm. ESS is an absolute count, so that one cell must
+be compared on epsilon, not on ESS. Doing it correctly, A2 beats no calibration on WASP-39b by
+**2.42x in efficiency (1.26% against 0.52%)**, and the bootstrap intervals are still disjoint
+([1.06, 1.71] against [0.44, 0.83]). Reading the raw ESS column instead would claim 4.85x,
+which is wrong. WASP-96b and K2-18b are unaffected because every cell there is at N = 2000.
 
 **On marginal agreement A2 is a small positive.** Taking the circular arm's JS as the achievable gain, A2 recovers **9.5% / 18.4% / 16.6%**. The H11 pooled transfer recovers **-16.2% / 0.8% / 12.4%**, so it is worse than doing nothing on WASP-39b and indistinguishable from it on WASP-96b. **A2 is the only anchor-free route that improves on no calibration on all three targets**, and that comparison, not the comparison with the circular arm, is what decides whether A2 was worth building.
 
-**On sampling efficiency A2 is a clear positive, and this is the stronger half.** A2's ESS CI is disjoint from the uncalibrated flow's on all three targets, and disjoint from the circular arm's on two of three (WASP-96b and K2-18b), matching it on WASP-39b. **WASP-96b's A2 arm at ESS 65.8 is the only arm anywhere in this project to clear `ot_calibrate.py`'s own "usable, ESS > 50" threshold**, against 10.9-14.7 for the four stored published runs.
+**On sampling efficiency A2 is a clear positive, and this is the stronger half.** A2's efficiency interval is disjoint from the uncalibrated flow's on all three targets (on WASP-39b this must be read on epsilon, see the N column above), and disjoint from the circular arm's on two of three (WASP-96b and K2-18b), matching it on WASP-39b. **WASP-96b's A2 arm at ESS 65.8 is the only arm anywhere in this project to clear `ot_calibrate.py`'s own "usable, ESS > 50" threshold**, against 10.9-14.7 for the four stored published runs.
 
 **Result 3, and the one that matters most for the manuscript. The anchor-fitted calibration over-narrows, and that is what circularity looks like from the functional side.** On K2-18b the circular arm has the best JS of any route (0.0283, near-perfect marginal agreement) and an ESS of 5.3 against 11.3 for not calibrating at all. A calibration that reproduces the anchor's marginals while being a significantly worse importance proposal than no calibration is a calibration that was fitted to those marginals. **This corroborates P5-D5 from an independent direction**, using a functional criterion rather than the structural argument that the Gaussian OT pushforward of the flow onto the anchor simply is the anchor.
 
 **Correction to P6-D21.** That entry recorded the K2-18b circular-versus-raw gap and said "at these magnitudes that is within noise, so state it as a caution ... not as a measured regression." **That was too cautious.** The 68% bootstrap intervals, [4.9, 7.8] against [9.5, 19.6], are disjoint. The correct statement is that the degradation is statistically resolved but occurs between two unusable proposals, so it should be reported as evidence of over-narrowing rather than as a practical loss.
+
+**AMENDED SAME DAY BY P6-D23. Every efficiency number in this entry was computed at a 5
+percent error floor, which A4 then showed is 4 to 7 times what the data supports.** At the
+floor the data supports, A2's advantage over no calibration disappears and no arm samples
+usefully. The measurement half of this entry contains no floor and is unaffected. Read Result
+3 and Result 4 of P6-D23 before quoting any ESS or epsilon below.
 
 **Honest limits on the A2 claim, to be carried into the manuscript.**
 1. **A2 does not repair the calibration.** It recovers roughly a seventh of the circular arm's apparent gain. The remaining 80-90% was never calibration. G3 stays closed as a repair.
@@ -1382,3 +1395,43 @@ Radius is the worst or near-worst parameter on all three (3.83x, 5.02x, 5.41x), 
 **Reproducibility notes.** TauREx is installed in the `mirage-taurex` environment, not `mirage`; the forward stage fails with `ModuleNotFoundError` if run under the latter. `scripts/taurex_forward.py:200` printed a hardcoded "WASP-39b geometry" label for every planet while line 184 selected the correct per-planet geometry throughout, so no result was affected; the label is fixed. `--score` now persists to `data/a2/a2_scores.json` so the figure and this entry read one artefact rather than the console.
 
 **Decision.** **A2 is kept and becomes the quantitative core of the v2 sim-to-real argument under Framing B.** The paper does not claim a fixed calibration. It claims a measured sim-to-real gap (3.06x / 1.85x / 2.39x in width, 47x / 18x / 8x in bias), an attribution that rules out noise amplitude (under a fifth) and the forward model (0.07 sigma, P6-D19), and an independent functional demonstration that the published calibration was fitted to its own target. **G3 and G9 are closed by measurement, not by repair.**
+
+---
+
+### P6-D23 — A4 answered: the published 5 percent error floor is 4 to 7 times what the data supports, and at the honest floor importance sampling is dead for every arm [Phase 6, 2026-11-16, MAJOR — qualifies P6-D22]
+
+**What ran, and why it cost nothing.** `scripts/a4_floor_sweep.py`, 63 cells: 3 targets x 3 arms (no calibration, circular, A2) x 7 floors (0.5, 1, 2, 3, 5, 7, 10 percent). The floor enters the likelihood only through `se = sqrt(sigma^2 + (floor * x)^2)`, so the sweep re-weights forward spectra that already exist from H11 and A2. **No TauREx call was made.** Figure `figures/fig_a4_floor.png`, cells `data/a4/a4_floor_sweep.json`.
+
+**Result 1. The floor the data supports is 0.67 to 1.37 percent, not 5.** Reading off where best-fit chi2/N crosses 1:
+
+| target | no calibration | circular | A2 | published floor is larger by |
+|---|---|---|---|---|
+| WASP-39b | 1.30% | 0.89% | 1.12% | **3.8 to 5.6x** |
+| WASP-96b | 0.70% | 0.67% | 0.68% | **7.1 to 7.5x** |
+| K2-18b | 1.30% | 1.34% | 1.37% | **3.6 to 3.8x** |
+
+The three arms agree closely within each target, so this is a property of the data and the forward model, not of any one proposal. **At the published 5 percent floor best-fit chi2/N is 0.03 to 0.20**, meaning the best available model is five to thirty times "too good" for its stated errors. That is the signature of an inflated error budget, and it is the quantitative form of the weight-collapse story this item was created to settle.
+
+**The estimate is conservative in the right direction.** chi2 here is evaluated at the best draw of a finite proposal, which can only overstate the true minimum. Overstated chi2 pushes the chi2/N = 1 crossing to a LARGER floor, so the true data-supported floor is at most these numbers and probably below them. The gap to 5 percent is therefore a lower bound.
+
+**This independently settles the P5-D4 floor mismatch in favour of the NS side.** P5-D4 recorded that the flow pipeline used a 5 percent systematic floor while the NS anchor used 1 percent, and that chi2 scaling as 1/sigma^2 inflated the apparent improvement about 25x. A4 was not built to test that. But the floor the data supports, 0.67 to 1.37 percent, **brackets the NS side's 1 percent and excludes the flow side's 5 percent**. The anchor's error budget was right and the flow pipeline's was inflated, which is the direction P5-D4 inferred from the chi2 discrepancy alone.
+
+**Result 2. At the floor the data supports, importance sampling fails for every arm on every target.** Efficiency at 1 percent, in percent of draws:
+
+| target | none | circular | A2 |
+|---|---|---|---|
+| WASP-39b | 0.10 | 0.34 | 0.13 |
+| WASP-96b | 0.37 | 1.52 | 0.18 |
+| K2-18b | 0.07 | 0.06 | 0.06 |
+
+That is ESS between 1 and 30 out of 1000 to 2000 draws. **Nothing in this project produces usable importance sampling at an honest error floor.** The non-catastrophic numbers reported throughout, including P3-D12, P6-D21 and P6-D22, exist because the floor was inflated to 5 percent.
+
+**Result 3, and it qualifies P6-D22 directly. A2's efficiency advantage over no calibration is floor-dependent and appears only at floors of 3 percent and above.** Counting cells where A2 beats no calibration: WASP-39b fails at 0.5 and 2 percent, WASP-96b fails at 0.5 and 1 percent, K2-18b fails at 1, 2 and 3 percent. **So the P6-D22 claim "A2 is a better importance proposal than the uncalibrated flow on all three targets" is true at the published floor and false at the floor the data supports.** It must be stated with the floor attached from now on.
+
+**Result 4. The "only arm above ESS 50" claim is specific to the published floor.** WASP-96b's A2 arm peaks at exactly 5 percent (epsilon 3.29%, ESS 65.8), falling to 47.3 at 3 percent and 25.2 at 7 percent. 5 percent is the single most favourable floor in the sweep for that claim. Separately, **K2-18b's A2 arm reaches ESS 103.6 at a 10 percent floor**, so "only arm" was also a statement about one floor rather than about the arm. Report it as "at the published floor" or drop it.
+
+**What A4 does NOT touch, and this matters for how much of P6-D22 survives.** The error floor enters only the importance weights. **A2's measurement half contains no floor at all**: the injection-fitted (s, k), the 3.06x / 1.85x / 2.39x width ratios, the 47x / 18x / 8x bias gaps, the radius being worst on all three, and the Tier 0 to Tier 1 to anchor attribution are all computed from injection pulls and the NS anchor. **None of them move.** The sim-to-real gap measurement stands exactly as written. It is the efficiency half of P6-D22 that now carries a floor caveat.
+
+**The two arms respond to the floor in opposite directions, which is itself diagnostic.** On WASP-96b and K2-18b the circular arm degrades as the floor grows (WASP-96b 1.52% at 1 percent to 0.15% at 10) while A2 improves (0.18% to 0.97%, peaking at 3.29%). A proposal fitted to the anchor is narrow and does best when the likelihood is sharp; a wider proposal does best when the likelihood is loose. That is the same over-narrowing signature P6-D22 identified, now visible as a slope rather than a single number.
+
+**Decision.** **H3 closes and A4 is done.** Three things change in the manuscript. **First, every ESS or epsilon number must carry its floor**, and the 5 percent value must be named as inherited from the published pipeline rather than derived. **Second, the honest-floor collapse becomes a result in its own right under Framing B**, and it is a stronger statement than any per-arm comparison: at an error budget the data actually supports, the amortized posterior cannot be corrected into a usable importance proposal by any method tested here. **Third, P6-D22's efficiency claims are amended** as set out in Result 3 and Result 4, while its measurement claims stand unchanged.

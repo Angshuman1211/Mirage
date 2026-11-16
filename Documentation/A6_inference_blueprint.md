@@ -173,7 +173,7 @@ the anchor to evaluate, so **an anchor-free calibration cannot be validated anch
 is a structural obstacle and not a sample-size complaint, which matters because a referee will
 otherwise read "three targets" and assume more targets would fix it.
 
-Figure available at `data/h11/fig_h11_transfer.png` if a panel is wanted. Left panel is the
+Figure available at `figures/fig_h11_transfer.png` if a panel is wanted. Left panel is the
 location/shape split, right panel is the four-class decay.
 
 ### One more thing H11 turned up, and it is a claim-level warning for the whole paper

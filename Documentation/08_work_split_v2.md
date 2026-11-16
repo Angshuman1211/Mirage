@@ -127,7 +127,7 @@ an estimate, not a measurement, so do not quote 1.4x as a result.
 
 **DONE 2026-11-16 (P6-D22). All three targets.** `scripts/a2_inject_calibrate.py`, 250
 injections per target at 256 draws each, Tier-1 noise, no nested sampling in the estimator.
-Figure `data/a2/fig_a2_injection.png`, scores `data/a2/a2_scores.json`.
+Figure `figures/fig_a2_injection.png`, scores `data/a2/a2_scores.json`.
 
 **The warning above was right, and it was written before the measurement.** Injections demand
 far less deflation than the real anchor on every parameter of every target, median ratio
@@ -165,6 +165,22 @@ Pairs naturally with A1, since A1 produces the depth-noise machinery.
 Sweep 0.5, 1, 2, 3, 5, 7, 10 percent on all three targets. Plot ESS, best-fit chi2/N and JS
 to NS against floor, with seed error bars. Cheap, mostly a loop over existing work, and it
 converts the weight collapse into a stated property of the error budget.
+
+**DONE 2026-11-16 (P6-D23). It was cheap as predicted, and it returned more than expected.**
+63 cells, all by re-weighting stored H11 and A2 forwards, no TauREx call. Figure
+`figures/fig_a4_floor.png`, cells `data/a4/a4_floor_sweep.json`.
+
+**The weight collapse is now a stated property of the error budget, which is exactly what this
+item promised.** Best-fit chi2/N reaches 1 at a floor of 0.67 to 1.37 percent depending on
+target, so **the published 5 percent floor is 3.6 to 7.5 times what the data supports**, and at
+5 percent chi2/N is 0.03 to 0.20. At the supported floor every arm on every target falls to
+epsilon 0.06 to 1.52 percent, so **nothing in this project samples usefully at an honest error
+budget**. Error bars are bootstrap over draws rather than over seeds, since WASP-96b and K2-18b
+have one trained arm each.
+
+**It also qualifies A2 above.** A2's efficiency advantage over no calibration holds only at
+floors of 3 percent and up, and WASP-96b's ESS 65.8 is a peak at exactly the published floor.
+A2's MEASUREMENT half has no floor in it and is untouched. See P6-D23 Results 3 and 4.
 
 ### A5. NS anchor stability and H8. (1 to 2 weeks wall clock, heaviest item)
 

@@ -482,9 +482,22 @@ Adding per-instrument offset latents should remove the chi2 excess in joint mult
 retrievals; leaving them out should reproduce a radius-style collapse. **This is the live
 methodological question the dead radius claim turns into.**
 
-**H3. ESS collapse is driven by the systematic floor.** Sweep 0.5, 1, 2, 3, 5, 7, 10 percent on
-all three targets, plot ESS, chi2/N and JS against floor with seed error bars. Turns a pathology
-into a stated property of the error budget.
+**H3. ESS collapse is driven by the systematic floor. CLOSED 2026-11-16 (P6-D23).** Swept
+0.5 to 10 percent on all three targets and three arms, 63 cells, by re-weighting stored
+forwards with no TauREx call. **Confirmed, and the floor is the driver.** Best-fit chi2/N
+reaches 1 at 0.67 to 1.37 percent, so the published 5 percent floor is 3.6 to 7.5x what the
+data supports, and at 5 percent chi2/N sits at 0.03 to 0.20. At the supported floor every arm
+collapses to epsilon 0.06 to 1.52 percent, so **no method tested here samples usefully at an
+honest error budget**. The pathology is now a stated property of the error budget, as this
+item asked.
+
+**This independently settles the P5-D4 mismatch in favour of the NS side.** P5-D4 (item 2 of
+the audit above) recorded that the flow pipeline used a 5 percent systematic floor while the
+NS anchor used 1 percent, and that chi2 scaling as 1/sigma^2 inflated the apparent improvement
+about 25x. A4 was not designed to test that, but the floor the data supports, 0.67 to 1.37
+percent, **brackets the NS side's 1 percent and excludes the flow side's 5 percent**. The
+anchor's error budget was right and the flow pipeline's was inflated. `scripts/a4_floor_sweep.py`,
+`data/a4/`.
 
 **H6. Summary-space distance predicts real error.** Rank-correlate a Schmitt-style MMD detector
 score against JS to NS across every arm. A null is a notable negative about amortized
