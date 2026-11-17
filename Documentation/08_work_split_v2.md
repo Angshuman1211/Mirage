@@ -163,7 +163,7 @@ a seventh of the circular gain; the rest was never calibration. **G3 and G9 clos
 not by repair.** Carry the four honest limits in P6-D22 into the manuscript, in particular that
 A2's ESS edge is partly mechanical because its proposals are simply wider.
 
-### A3. H5, the noise-proxy test. (3 to 5 days) UNBLOCKED 2026-11-16.
+### A3. H5, the noise-proxy test. DONE 2026-11-17 (P6-D26). NEGATIVE, and it is the headline.
 
 Condition on three inputs: Sigma-hat from OOT flux, Sigma-hat from pseudo-transit depth
 noise, and published diagonal errors. If the conditioning paradox disappears with depth-noise
@@ -185,6 +185,27 @@ more likely one given P6-D17 already found the conditioning effect survives on c
 both and report both; a result that holds on one pool only is not a result. And WASP-96b is
 the only target with a depth-noise Sigma-hat, so A3 is a single-target test and cannot be
 written as if it settles H5 on the other two.
+
+**DONE 2026-11-17 (P6-D26), and THE PREDICTION ABOVE WAS RIGHT.** It did not move.
+`scripts/a3_noise_proxy.py`, three seeds, seven Sigma-hat inputs. **The specified form could not
+run**: no covariance-conditioned model exists on WASP-96b's grid, both its configs being
+`n_oot_frames: 0`, so A3 became the sensitivity half, legitimate because the embedding whitens
+and therefore carries correlation structure alone, which is exactly H5's axis. **Span of real
+mean JS across every input 0.0039, seed sd 0.0137, paradox +0.0827, so the proxy explains at
+most 4.7 percent, and 2.2 percent across the six realistic inputs.** The `real` input reproduces
+P6-D2 exactly on all three seeds, `scale10` differs by 0.0000, and a forced re-run reproduced
+every digit, so the harness is the published pipeline with one input swapped. **The
+deflationary reading is refuted by measurement**: the embedding moves 96.9 percent of its own
+norm between inputs but is 3.2 to 5.9 percent of the context norm, 15.1 percent even under the
+impossible rank-1 input. The channel works and cannot matter.
+
+**The caution above about running both pools is now genuinely satisfied, but only after a
+repair.** An audit found the first version's Toeplitz depth probes retained 46 and 29 percent of
+P6-D25's measured structure, and the OOT-block probe at 0.064 sat below the K=100 sampling floor
+of 0.080, so it was a second white arm and the two pools were never really both tested. Carrying
+the measured matrices over as principal submatrices fixes it, at 0.504 and 0.247 fed structure,
+and **both pools now agree**, 0.425 and 0.427 against the real input's 0.426.
+**This was the last open experiment on Track 1.**
 
 ### A4. H3, the floor sweep. (3 to 5 days)
 
@@ -501,9 +522,10 @@ Revised 2026-11-08.
    model. The gate is H8 alone now.
 6. **V7**, **V2** by 2026-11-16. **V6**, **V1b** by 2026-11-23. **V5** verification by
    2026-11-16, result by 2026-11-30.
-7. ~~**A2**~~ DONE 2026-11-16 (P6-D22). ~~**A4**~~ DONE 2026-11-16 (P6-D23). **A3 is now the
-   only open experiment on Track 1**, unblocked by P6-D25, followed by the sigma-range retrain,
-   which is the actual fix that P6-D7 and P6-D8 jointly point at.
+7. ~~**A2**~~ DONE 2026-11-16 (P6-D22). ~~**A4**~~ DONE 2026-11-16 (P6-D23). ~~**A3**~~ DONE
+   2026-11-17 (P6-D26). **Every Track 1 experiment is now closed.** What remains is the
+   sigma-range retrain, which is optional and is the fix P6-D7 and P6-D8 jointly point at,
+   regenerating fig5, and the manuscript.
 8. Writing starts after A5 and the required Track 2 set. Either one missing changes what the
    paper is allowed to claim.
 
