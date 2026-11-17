@@ -74,6 +74,7 @@ figures/*.pdf
 !figures/fig_a4_floor.png
 !figures/fig_h11_transfer.png
 !figures/fig_g13_depth_noise.png
+!figures/fig_a3_noise_proxy.png
 
 # WASP-96b reduction artifacts (P5-D3): large FITS + raw data + local configs
 pipeline_outputs_directory_*/

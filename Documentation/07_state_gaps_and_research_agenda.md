@@ -486,11 +486,23 @@ effect is 0.1x to 0.5x the seed spread and is withdrawn, though the deeper cause
 published baselines never trained rather than seed noise. Real: no, the 0.344 to 0.426 gap is
 8.4x the seed spread and stands. Pillar 1 is reshaped, not withdrawn. See section 4.2.
 
-**H5. The conditioning paradox comes from the noise proxy.** Real JS may rise under covariance
-conditioning because Sigma-hat from OOT *flux* misrepresents *depth*-noise covariance. Condition
-on three inputs: Sigma-hat from OOT, Sigma-hat from pseudo-transit depth noise, and published
-diagonal errors. If the paradox disappears with depth-noise Sigma-hat, there is a mechanism; if
-it persists, the paradox is real and is the headline.
+**H5. The conditioning paradox comes from the noise proxy. ANSWERED NEGATIVE, CLOSED 2026-11-17
+(P6-D26).** Real JS may rise under covariance conditioning because Sigma-hat from OOT *flux*
+misrepresents *depth*-noise covariance. Conditioned on seven inputs rather than three, spanning
+identity correlation up through P6-D25's measured depth-noise matrix, carried over as a principal
+submatrix at a fed mean absolute off-diagonal of 0.504 against the measured 0.476, to a physically
+impossible rank-1 bound. **The span of real-data mean JS across all of them is 0.0039 against a
+seed sd of 0.0137 and a paradox of +0.0827, so the proxy explains at most 4.7 percent of it, and
+2.2 percent across the six realistic inputs.** Spans of 0.0047, 0.0031 and 0.0031 under three
+independent base-noise realizations say the measurement is not one lucky draw. The deflationary
+reading, that the flow ignores the channel, is refuted: the embedding moves by 96.9 percent of its
+own norm between inputs, but the covariance block is only **3.2 to 5.9 percent of the context
+norm** beside the spectrum block across realistic inputs, and 15.1 percent even under rank 1, so
+it is responsive and architecturally incapable of carrying the effect. **The paradox is real and
+it is the headline**, which is the outcome this line committed to in advance. Tests conditioning
+at inference, not at training. An audit on the day of the run found the first version's Toeplitz
+depth probes retained only 46 and 29 percent of the measured structure, the weaker one falling
+below the K=100 sampling floor; the repair did not change the conclusion.
 
 **H2. Fit kernel hyperparameters to the real OOT covariance**, then randomize around the fit
 rather than over a broad hand-chosen range. Direct GW precedent: Wildberger et al. fitted a
