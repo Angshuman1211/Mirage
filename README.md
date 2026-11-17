@@ -305,6 +305,54 @@ effect sizes attached (P6-D11).
 
 ---
 
+## Phase 6, part 4: the conditioning paradox is real
+
+The flow has an arm that reads the noise: it ingests out-of-transit frames, estimates a
+covariance, and conditions on it. On real WASP-39b that arm is **worse** than the one that reads
+nothing, mean 1-D JS to the nested-sampling anchor 0.426 against 0.344 over three training seeds,
+a gap 8.4x the seed spread. Better information about the noise makes the answer worse. H5 blamed
+the proxy, since the covariance is estimated from *flux* and the quantity that matters is *depth*,
+and the section above measured that those differ (A3, P6-D26).
+
+![Noise-proxy sensitivity](figures/fig_a3_noise_proxy.png)
+
+| Σ̂ fed to the covariance arm | correlation fed in | mean JS |
+|---|---|---|
+| white, diagonal errors | 0.082 | 0.427 |
+| real out-of-transit flux, what Tier 1 uses | 0.134 | 0.426 |
+| depth OOT blocks, measured matrix | 0.247 | 0.427 |
+| depth prayer bead, measured matrix | 0.504 | 0.425 |
+| rank 1, physically impossible | 1.000 | 0.423 |
+| **no conditioning at all** | — | **0.344** |
+
+**Nothing moves it.** The span across every Σ̂ tried is 0.0039 against a seed spread of 0.0137 and
+a paradox of 0.0827, so the noise proxy accounts for at most 4.7% of the effect, and that bound
+comes from an input no instrument could produce. Across realistic inputs it is 2.2%. The
+temperature sits near 1620 K under every input, against the anchor's 608 K. The depth probes
+carry the measured correlation across from the section above, and the stronger one is fed at
+0.504 against the 0.476 that was measured, so the regime is covered from inside the measurement
+rather than only from the impossible bound.
+
+**The obvious deflationary reading is that the model ignores the channel. It does not.** The
+covariance embedding moves by 97% of its own norm when the input switches from real frames to
+white noise. What it cannot do is matter, because that block has norm 0.419 beside the spectrum
+block's 10.910, so it is **3 to 6% of the context** across realistic inputs. Even the rank-1
+input, which inflates the block four-fold to 15% of the context, shifts the posterior by 0.003.
+The channel is well built, verifiably scale-free, responsive to its input, and architecturally
+incapable of carrying the effect it exists to carry.
+
+So the paradox is not an artifact of how the noise was estimated. Conditioning at this scale is
+an architectural change that costs real-data accuracy, and the noise information is not the
+reason. Three checks make that readable. The real-frames row reproduces the published numbers
+exactly on all three seeds. Feeding the same frames scaled by ten changes the answer by 0.0000.
+And the comparison is exactly paired, because the sampler reseeds from each arm's own config, so
+every row starts from a byte-identical draw and only the context differs.
+
+This tests conditioning at inference. Whether a model *trained* on depth-noise Σ̂ behaves
+differently is untested and would need a retrain.
+
+---
+
 ## Current state
 
 Phase 6 is the v2 revision. Work is split across two tracks on separate branches, merged at phase
@@ -317,7 +365,7 @@ retrieval, the WASP-96b self-reduction, the claim audits, and the Phase 6 repair
 |---|---|---|
 | A1 | Tier-1 injections with SBC, TARP, HPD coverage | **done** (P6-D8, P6-D11), G13 closed (P6-D25) |
 | A2 | Rebuild the calibration on injection labels | **done**, all three targets (P6-D22) |
-| A3 | H5, the noise-proxy test | **unblocked** by P6-D25, the last open experiment |
+| A3 | H5, the noise-proxy test | **done** (P6-D26). Negative, and it is the headline |
 | A4 | H3, the error-floor sweep | **done** (P6-D23) |
 | A5 | NS anchor stability, and TauREx vs petitRADTRANS | **done** (P6-D18, P6-D19) |
 | A6 | Manuscript, inference side | blueprint **done** (P6-D20) |
@@ -334,8 +382,8 @@ data-handling pipeline, the translation study, and related work.
 | V3 | H1 as a mechanism check | built and smoke-tested, **not run** (P6-D16) |
 | V1b | Score the translated arm on the A1 injection ladder | build and first result **done** (P6-D24), interpretation open |
 
-**What is left.** On Track 1, A3 is the only open experiment, followed by a σ-range retrain,
-regenerating fig5, and the v2 manuscript. On Track 2, running V7 and V3 now that the spectra they
+**What is left.** On Track 1, every experiment is closed. What remains is an optional σ-range
+retrain, regenerating fig5, and the v2 manuscript. On Track 2, running V7 and V3 now that the spectra they
 need are in the repository, the inferential half of V2, and the V1b write-up. arXiv v2 goes last,
 by decision (P6-D10).
 
