@@ -248,6 +248,17 @@ same exposure and is not yet known to be evaluator-independent. **Assigned as V1
 2026-11-23 (P6-D9).** The A1 ladder already exists in `scripts/sbc_report.py`, so this is a run
 and not a build.
 
+**CLOSED 2026-11-16 (P6-D24). The verdict does NOT flip, and "a run not a build" was wrong
+twice over.** The ABC model needed its own 6-parameter injection ladder, and building it meant
+resampling the ABC population's joint theta-geometry rather than fixing a radius, because the
+radius is the latent that model omits. Result at the A1 protocol, 200 draws: the translated arm
+covers at **0.483 against a nominal 0.68** with TARP deviation 0.335, while the two untranslated
+ABC arms sit at 0.668 and 0.686 with deviations 0.090 and 0.110 on the same injections. Damage
+concentrates on temperature and logCH4, and the rank skew is negative there, so the translated
+posterior is pushed HIGH rather than widened. **P6-D3's translation verdict is therefore
+evaluator-independent**, and the controls landing at nominal are an internal check that the new
+ladder is sound. `data/inject/wasp39_tier1_abc.hdf`, `scripts/inject_real_noise.py --params abc`.
+
 **G2. Every headline is a single run.** CLOSED for the conditioning arms: 3 training
 seeds per arm, 12 runs, in `configs/h9_*` (P6-D1, P6-D2). Still open for every other headline,
 and the H9 runs vary `dataset.random_seed`, so their spread covers split plus init plus noise,
@@ -412,9 +423,20 @@ strictly more expensive than nested sampling, whether or not the calibration nee
 **G12. KL estimator biased upward at low n.** Ordering stable, absolute value not. Replace
 with MMD plus a permutation test, or a classifier two-sample test.
 
-**G13. OOT residuals are flux noise standing in for depth noise.** Now load-bearing, because
+**G13. OOT residuals are flux noise standing in for depth noise.** Was load-bearing, because
 Tier 1 depends on it. Construct depth noise by running the light-curve fit on pseudo-transits
 injected into OOT segments.
+**CLOSED 2026-11-16 (P6-D25).** `scripts/depth_noise_wasp96.py`, 280 integrations, 90 bins,
+three arms. **The recipe as written above does not run**: the transit is 2.66 h and the OOT
+blocks are 2.27 h and 1.44 h, so no OOT segment can host a full pseudo-transit. Prayer-bead
+injection on the real time axis replaces it. **Amplitude is NOT the problem.** A white-noise
+control through the identical fit recovers the published error bar to 0.99x, and the depth
+arms read 0.67x and 0.83x only because prayer-bead on fit residuals is biased low, predicted
+0.667 against 0.677 measured from the residuals' power deficit at the transit timescale.
+**Structure IS the problem.** Depth noise correlates across wavelength at mean absolute
+off-diagonal 0.22-0.48 against the flux route's 0.159, top eigenvalue 15.0-45.0 against 7.4,
+and carries a 31-37 ppm common-mode depth offset that is H10's free baseline offset measured
+in the pipeline. WASP-96b only; the other two keep the approximation and the caveat.
 
 **G14. Prose and presentation.** `R_p` vs `r_p`; Table 2's 0.24 vs Fig 2's 0.235; four
 unparseable sentences; reads as a report on what was explored; editorial notes in checklist.
@@ -436,9 +458,10 @@ correlated noise, and it is simultaneously the non-circular calibration check (G
 large benchmark (G5). It enables SBC, expected coverage and TARP. Precedent: DINGO trains on
 "simulated signals injected into real noise realizations taken from detectors".
 
-Two cautions, both real. **G13 stands**: build depth noise through the actual light-curve fit,
-not from flux residuals. Scope that properly to **WASP-96b**, where we own the exoTEDRF plus
-batman pipeline end to end; treat the other two as flux-noise approximations with the caveat
+Two cautions, both real. **G13 is now ANSWERED (P6-D25), and its answer is split**: the flux
+approximation is right on amplitude and understates cross-wavelength structure by 1.4x to 3x.
+Built through the actual light-curve fit on **WASP-96b**, where the exoTEDRF plus batman
+pipeline is mine end to end; the other two remain flux-noise approximations with the caveat
 stated. **Frame counts bite**: 56 SOSS frames give very few independent blocks at a 0.02-0.05
 micron correlation length, so frame-resampling uncertainty is available on WASP-39b and not on
 the other two. Say so rather than bootstrapping past it.

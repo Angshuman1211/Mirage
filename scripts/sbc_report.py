@@ -40,6 +40,18 @@ from mirage.eval.coverage import coverage
 from mirage.eval.sbc import hpd_ranks, sbc, tarp
 
 PARAM = ["rp_rj", "T", "logH2O", "logCO2", "logCH4", "logCO", "logNH3"]
+# The 6-parameter ABC model (V1b, the translated arm) drops the radius, which is
+# precisely the latent P3-D11 found was missing. Labelling it with PARAM[:6] would
+# silently shift every name by one and report the temperature column as "rp_rj".
+PARAM_ABC = ["T", "logH2O", "logCO2", "logCH4", "logCO", "logNH3"]
+
+
+def param_names(d: int):
+    if d == len(PARAM):
+        return PARAM
+    if d == len(PARAM_ABC):
+        return PARAM_ABC
+    raise SystemExit(f"no parameter names for theta width {d}")
 
 
 def load_arm(ckpt_dir: Path):
@@ -198,7 +210,7 @@ def main(tier_path: str, arms: list[str], n: int, n_samples: int, n_bins: int,
 
     D = tier["theta"].shape[1]
     print(f"\n  per-parameter SBC p-values (bold = below 0.01)")
-    print(f"  {'arm':<22}" + "".join(f"{q:>9}" for q in PARAM[:D]))
+    print(f"  {'arm':<22}" + "".join(f"{q:>9}" for q in param_names(D)))
     for name, r in stats.items():
         print(f"  {name:<22}" + "".join(f"{q:>9.1e}" for q in r.pvalue))
     print(f"\n  SBC rank skew (mean normalised rank - 0.5; negative = posterior high)")

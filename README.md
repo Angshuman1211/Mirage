@@ -203,7 +203,46 @@ the flow's 5%, so the anchor's error budget was right.
 It also qualifies A2 above: A2's *efficiency* advantage holds only at floors of 3% and up, while
 A2's *measurement* contains no floor at all and is untouched.
 
+
 ---
+
+## Phase 6, part 3: is the injected noise the right noise?
+
+Tier-1 injections contaminate simulated spectra with noise built from real out-of-transit frames.
+Those frames are *flux*, and a transit depth is not a flux, so the construction could not carry
+anything the light-curve fit itself introduces. G13 logged that gap in Phase 5. Settling it needs
+the fit re-run on data with a known injected depth, which is possible only on WASP-96b, where the
+exoTEDRF reduction and the batman fit are mine end to end (A1 completion, P6-D25).
+
+![Depth noise versus the flux approximation](figures/fig_g13_depth_noise.png)
+
+| arm | σ vs published bar | mean abs off-diagonal | top eigenvalue | common mode |
+|---|---|---|---|---|
+| depth, prayer bead | 0.67x | 0.476 | 45.0 | 0.039 |
+| depth, OOT blocks | 0.83x | 0.223 | 15.0 | 0.040 |
+| white-noise control | **0.99x** | 0.047 | 2.4 | 0.009 |
+| flux route, Tier 1 today | 1.00x by construction | 0.159 | 7.4 | 0.026 |
+
+**The first reading of that table is wrong, and the control is what catches it.** Both depth
+constructions land below the published error bar, which looks like a finding that the bars are
+conservative. White noise at the same residual scatter, through the identical fit, recovers the
+published bar to 0.99x. The shortfall belongs to the construction: prayer-bead resamples *fit*
+residuals, and exoTEDRF's detrending plus the four parameters the fit removes have already taken
+power out at exactly the transit timescale. That is predictable in closed form from the residuals'
+own power spectrum, **0.667 predicted against 0.677 measured**.
+
+**So the approximation is right on amplitude and wrong on structure.** Depth noise correlates
+across wavelength 1.4x to 3x more strongly than the flux route, and it carries a 31 to 37 ppm
+near-uniform common-mode depth offset. That offset is a free transit-depth baseline, which is the
+latent H10 proposes and the thing the floating radius stands in for, measured here in the pipeline
+rather than inferred from a posterior.
+
+Two honest limits. The two depth pools bracket rather than agree, 0.67x against 0.83x with
+disjoint intervals. And the structure comparison confounds method with provenance, since the depth
+route uses the 280-frame self-reduction and the flux route the 56-frame published table, so the
+gap is an upper bound on what the method alone contributes. WASP-39b and K2-18b keep the flux
+approximation, and the paper says so.
+
 
 ## Domain adaptation, from the input side (Track 2)
 
@@ -276,9 +315,9 @@ retrieval, the WASP-96b self-reduction, the claim audits, and the Phase 6 repair
 
 | item | what | status |
 |---|---|---|
-| A1 | Tier-1 injections with SBC, TARP, HPD coverage | **done** (P6-D8, P6-D11) |
+| A1 | Tier-1 injections with SBC, TARP, HPD coverage | **done** (P6-D8, P6-D11), G13 closed (P6-D25) |
 | A2 | Rebuild the calibration on injection labels | **done**, all three targets (P6-D22) |
-| A3 | H5, the noise-proxy test | **blocked** on depth-noise Σ̂ from G13 |
+| A3 | H5, the noise-proxy test | **unblocked** by P6-D25, the last open experiment |
 | A4 | H3, the error-floor sweep | **done** (P6-D23) |
 | A5 | NS anchor stability, and TauREx vs petitRADTRANS | **done** (P6-D18, P6-D19) |
 | A6 | Manuscript, inference side | blueprint **done** (P6-D20) |
@@ -293,11 +332,12 @@ data-handling pipeline, the translation study, and related work.
 | V6 | Related work, and relabel the old ablation script | **done** |
 | V7 | Rebuild the CycleGAN real side on all three spectra | built and smoke-tested, **not run** (P6-D16) |
 | V3 | H1 as a mechanism check | built and smoke-tested, **not run** (P6-D16) |
-| V1b | Score the translated arm on the A1 injection ladder | **blocked**, needs a 6-parameter Tier-1 build (P6-D15) |
+| V1b | Score the translated arm on the A1 injection ladder | build and first result **done** (P6-D24), interpretation open |
 
-**What is left.** On Track 1, A3 once G13 lands, a σ-range retrain, regenerating fig5, and the v2
-manuscript. On Track 2, running V7 and V3 now that the spectra they need are in the repository,
-the inferential half of V2, and unblocking V1b. arXiv v2 goes last, by decision (P6-D10).
+**What is left.** On Track 1, A3 is the only open experiment, followed by a σ-range retrain,
+regenerating fig5, and the v2 manuscript. On Track 2, running V7 and V3 now that the spectra they
+need are in the repository, the inferential half of V2, and the V1b write-up. arXiv v2 goes last,
+by decision (P6-D10).
 
 ---
 

@@ -46,12 +46,34 @@ wavelength is +0.31 at 121 sigma from a column-shuffled null, still +0.18 at lag
 
 What it does NOT inherit is anything the light-curve fit itself introduces:
 detrending, limb-darkening degeneracy, transit-shape covariance. Capturing those
-needs the fit re-run on injected data, which is possible only where we own the
-reduction. That is WASP-96b (280 integrations, our own exoTEDRF plus batman
+needs the fit re-run on injected data, which is possible only where I own the
+reduction. That is WASP-96b (280 integrations, my own exoTEDRF plus batman
 pipeline), NOT the headline target. So this approximation is what WASP-39b and
-K2-18b get, it is stated as such, and `depth_noise_wasp96.py` exists to measure
-how wrong it is on the one target where both routes are available. Do not report
-Tier-1 numbers on the three targets as if they rest on the same construction.
+K2-18b get, it is stated as such, and `depth_noise_wasp96.py` measures how wrong
+it is on the one target where both routes are available. Do not report Tier-1
+numbers on the three targets as if they rest on the same construction.
+
+THAT MEASUREMENT IS IN, AND IT SPLITS (P6-D25). The approximation is right on
+AMPLITUDE and wrong on STRUCTURE.
+
+  Amplitude. A white-noise control at the real per-bin residual sd, pushed
+  through the identical fit, recovers the published error bar to 0.99x. So the
+  rescaling above is not injecting the wrong amount of noise on WASP-96b. The
+  depth arms read 0.67x and 0.83x, but that is a prayer-bead bias, predicted in
+  closed form at 0.667 against 0.677 measured, because fit residuals are already
+  power-deficient at the transit timescale and a cyclic shift cannot restore it.
+  Do not quote those two numbers as evidence the published bars are conservative.
+
+  Structure. Depth noise is far more correlated across wavelength than this
+  construction produces: mean absolute off-diagonal 0.22-0.48 against 0.159 here,
+  top eigenvalue 15.0-45.0 against 7.4, plus a 31-37 ppm near-uniform common-mode
+  depth OFFSET that the difference-of-means cannot generate. The fit projects
+  noise onto the transit timescale, which is where cross-wavelength common-mode
+  drift lives, so the depth error inherits correlation the raw residuals hide.
+
+  So the honest statement for the paper is that Tier-1 noise has the right
+  amplitude and understates the correlation, by a factor bounded above at 3x,
+  and that the bound is measured on one target only.
 
 Frames are split CONTIGUOUSLY, not by alternating index. JWST systematics are
 time-correlated, so an even/odd split would put the same drift on both sides and
@@ -93,6 +115,72 @@ PLANETS = {
         rp=(0.10, 0.40), T=(100.0, 600.0), geom="K2_18b"),
 }
 LOGX_RANGE = (-9.0, -1.0)
+
+# ---------------------------------------------------------------------------
+# V1b. The translated arm is the 6-parameter ABC model, so it needs its own
+# injection ladder. Three things make this NOT a parameter-count change.
+#
+#  1. ABC is a POPULATION. abc_train.hdf holds 73,044 rows with 73,044 distinct
+#     planet_ids, one draw per planet, and the geometry lives outside theta in
+#     AuxillaryTable.csv. The radius is the latent the ABC model omits, which is
+#     the paper's own thesis showing up in the build. There is no single fixed
+#     radius to pick.
+#  2. The prior is NOT a clean box. Per-species abundance ranges differ
+#     (log_CO bottoms out at -6, the rest at -9). So theta is RESAMPLED from
+#     abc_train's own rows rather than drawn from a box I would have to invent.
+#     That makes the injection labels exact draws from the training prior.
+#  3. The pool is the FULL population, and restricting it is a TRAP I walked
+#     into first. Restricting to the 2,000 planets nearest WASP-39b in transit
+#     depth looks right, since the injected noise is WASP-39b depth noise and
+#     applying it to a very different depth is incoherent. But SBC's guarantee
+#     only holds for draws from the prior the model was TRAINED on, and the
+#     near-WASP-39b planets are a biased subsample of it. Measured: the
+#     restricted pool normalises to flux mean +2.17 sd 0.43 against a training
+#     set that is 0/1 by construction, while the full population gives +0.12
+#     sd 0.87. The restriction would have broken SBC validity and shown up as
+#     miscalibration of the arm. --abc-pool N restores it for diagnostics only.
+#     Varying depth means varying SNR, which is fine: the reported sigma is the
+#     same for every injection, so the noise model stays consistent, and SBC is
+#     valid on uninformative data as long as the posterior reflects that.
+# ---------------------------------------------------------------------------
+ABC_CFG = dict(
+    stats="data/abc/abc_train.hdf",
+    aux="data/abc/Level2Data/AuxillaryTable.csv",
+    noise_from="wasp39",          # the real frames the noise realizations come from
+    target="WASP39",              # geometry the pool is centred on
+)
+R_JUP, M_JUP = 7.1492e7, 1.89813e27
+R_SUN, M_SUN = 6.957e8, 1.98892e30
+
+
+def abc_pool(pool_n: int):
+    """ABC rows joined to their geometry, optionally restricted to the planets
+    nearest WASP-39b in transit depth. Returns (theta, geom) with geom columns
+    [rp_rj, mp_mj, rs_rsun, ms_msun, ts]."""
+    import taurex_forward as tf
+    with h5py.File(ABC_CFG["stats"]) as h:
+        theta = h["theta"][:].astype(np.float64)
+        pid = h["planet_id"][:]
+    aux = pd.read_csv(ABC_CFG["aux"]).set_index("planet_ID")
+    keep = np.isin(pid, aux.index.values)
+    if not keep.all():
+        print(f"[abc] {(~keep).sum()} of {len(pid)} rows have no geometry, dropped")
+    theta, pid = theta[keep], pid[keep]
+    a = aux.loc[pid]
+    geom = np.column_stack([
+        a["planet_radius_m"].values / R_JUP, a["planet_mass_kg"].values / M_JUP,
+        a["star_radius_m"].values / R_SUN, a["star_mass_kg"].values / M_SUN,
+        a["star_temperature"].values]).astype(np.float64)
+    if pool_n and pool_n < len(theta):
+        tgt = getattr(tf, ABC_CFG["target"])
+        d_t = (tgt["rp_rj"] * R_JUP / (tgt["rs_rsun"] * R_SUN)) ** 2
+        d = (geom[:, 0] * R_JUP / (geom[:, 2] * R_SUN)) ** 2
+        order = np.argsort(np.abs(np.log(d / d_t)))[:pool_n]
+        theta, geom, d = theta[order], geom[order], d[order]
+        print(f"[abc] pool restricted to {pool_n} planets nearest WASP-39b in "
+              f"depth: {100 * d.min():.3f} to {100 * d.max():.3f}%, "
+              f"target {100 * d_t:.3f}%")
+    return theta, geom
 
 # Absolute instrument guards. The pathological-BIN filter is relative to each
 # instrument's own median, so a uniformly bad instrument passes it untouched.
@@ -334,11 +422,15 @@ def sigma_scale_for_training(ref_dir: str = "configs/h9_rad_cov_s42") -> float:
 
 
 def build_set(planet: str, n: int, seed: int, out: str | None,
-              sigma_scale: str = "1.0"):
+              sigma_scale: str = "1.0", params: str = "radius",
+              abc_pool_n: int = 2000):
     """Prior draws + TauREx forward + the held-out real noise, in training layout."""
     import taurex_forward as tf          # PYTHONPATH=scripts, mirage-taurex env
 
     P = PLANETS[planet]
+    is_abc = params == "abc"
+    STATS = ABC_CFG["stats"] if is_abc else P["stats"]
+    D = 6 if is_abc else 7
     nz = np.load(OUT / f"{planet}_noise.npz", allow_pickle=True)
     noise_pool, covered = nz["noise"], nz["covered"]
     wl = nz["wlen"]
@@ -346,7 +438,7 @@ def build_set(planet: str, n: int, seed: int, out: str | None,
         raise SystemExit(f"only {len(noise_pool)} noise realizations; "
                          f"rerun --noise-only --n {n}")
 
-    with h5py.File(P["stats"]) as h:
+    with h5py.File(STATS) as h:
         _fstd_med = float(np.median(h["flux_std"][:]))
     if sigma_scale == "train":
         want = sigma_scale_for_training()                 # normalised sigma target
@@ -366,19 +458,30 @@ def build_set(planet: str, n: int, seed: int, out: str | None,
     rp_lo, rp_hi = P["rp"]
     T_lo, T_hi = P["T"]
     rng = np.random.default_rng(seed)
+    if is_abc:
+        # Resample the training prior itself rather than invent a box: the ABC
+        # per-species abundance ranges are not a clean product of intervals.
+        pool_theta, pool_geom = abc_pool(abc_pool_n)
+        idx = rng.choice(len(pool_theta), size=n, replace=len(pool_theta) < n)
 
-    theta = np.empty((n, 7), np.float32)
+    theta = np.empty((n, D), np.float32)
     flux = np.empty((n, len(wl)), np.float32)
     sig = np.empty((n, len(wl)), np.float32)
     geom = np.empty((n, 5), np.float32)
     clean = np.empty((n, len(wl)), np.float32)
 
     for i in range(n):
-        rp = rng.uniform(rp_lo, rp_hi)
-        T = rng.uniform(T_lo, T_hi)
-        logx = rng.uniform(*LOGX_RANGE, size=5)
-        g = dict(rp_rj=rp, mp_mj=pgeom["mp_mj"], rs_rsun=pgeom["rs_rsun"],
-                 ms_msun=pgeom["ms_msun"], ts=pgeom["ts"])
+        if is_abc:
+            th_i, gg = pool_theta[idx[i]], pool_geom[idx[i]]
+            T, logx = float(th_i[0]), th_i[1:]
+            g = dict(rp_rj=float(gg[0]), mp_mj=float(gg[1]), rs_rsun=float(gg[2]),
+                     ms_msun=float(gg[3]), ts=float(gg[4]))
+        else:
+            rp = rng.uniform(rp_lo, rp_hi)
+            T = rng.uniform(T_lo, T_hi)
+            logx = rng.uniform(*LOGX_RANGE, size=5)
+            g = dict(rp_rj=rp, mp_mj=pgeom["mp_mj"], rs_rsun=pgeom["rs_rsun"],
+                     ms_msun=pgeom["ms_msun"], ts=pgeom["ts"])
         spec = tf.spectrum(tf.build_model(**g), np.concatenate([[T], logx]),
                            wl, width_asc)
         clean[i] = spec
@@ -386,8 +489,9 @@ def build_set(planet: str, n: int, seed: int, out: str | None,
         # sigma the analysis would report: published everywhere, which is what the
         # realizations were scaled to. Already complete, including white-filled bins.
         sig[i] = nz["sigma_published"] * scale
-        theta[i] = np.concatenate([[rp, T], logx])
-        geom[i] = [rp, g["mp_mj"], g["rs_rsun"], g["ms_msun"], g["ts"]]
+        theta[i] = (np.concatenate([[T], logx]) if is_abc
+                    else np.concatenate([[rp, T], logx]))
+        geom[i] = [g["rp_rj"], g["mp_mj"], g["rs_rsun"], g["ms_msun"], g["ts"]]
         if (i + 1) % 100 == 0:
             print(f"  {i+1}/{n}")
 
@@ -397,7 +501,7 @@ def build_set(planet: str, n: int, seed: int, out: str | None,
     # TauREx returns raw transit depth (~0.021). Writing raw depth here would hand
     # the flow an input ~100 sigma from anything it saw in training, and it would
     # not error, it would just return nonsense.
-    with h5py.File(P["stats"]) as h:
+    with h5py.File(STATS) as h:
         wl_stored = h["wlen"][0].astype(np.float64)
         fmean = h["flux_mean"][:].astype(np.float64)
         fstd = h["flux_std"][:].astype(np.float64)
@@ -423,7 +527,7 @@ def build_set(planet: str, n: int, seed: int, out: str | None,
     clean_n = ((clean - fmean) / fstd).astype(np.float32)
     sig = (sig / fstd).astype(np.float32)
 
-    out = Path(out or OUT / f"{planet}_tier1.hdf")
+    out = Path(out or OUT / f"{planet}_tier1{'_abc' if is_abc else ''}.hdf")
     out.parent.mkdir(parents=True, exist_ok=True)
     with h5py.File(out, "w") as f:
         f.create_dataset("theta", data=theta)
@@ -473,6 +577,14 @@ if __name__ == "__main__":
                     help="also use oot_extra instruments (K2-18b: MIRI, 18 frames)")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--out", default=None)
+    ap.add_argument("--params", default="radius", choices=["radius", "abc"],
+                    help="radius = the 7-param model; abc = the 6-param ABC model "
+                         "the translated arm uses (V1b)")
+    ap.add_argument("--abc-pool", type=int, default=0,
+                    help="DIAGNOSTIC ONLY: restrict the ABC population to the N "
+                         "planets nearest WASP-39b in depth. Default 0 (full "
+                         "population) is the only SBC-valid setting, see the "
+                         "ABC_CFG note above")
     ap.add_argument("--sigma-scale", default="1.0",
                     help="'1.0' = published error bars (Tier 1, realistic but OOD for "
                          "the sigma embedding); 'train' = scaled into the training "
@@ -481,6 +593,7 @@ if __name__ == "__main__":
     if a.noise_only:
         build_noise(a.planet, a.n, a.n_avg, a.split, a.amplitude, a.seed, a.extra)
     elif a.build:
-        build_set(a.planet, a.n, a.seed, a.out, a.sigma_scale)
+        build_set(a.planet, a.n, a.seed, a.out, a.sigma_scale,
+                  params=a.params, abc_pool_n=a.abc_pool)
     else:
         ap.error("pass --noise-only or --build")

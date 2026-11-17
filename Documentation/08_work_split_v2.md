@@ -73,8 +73,8 @@ three-arm table is kept.
 samplers before use (P6-D5), `scripts/inject_real_noise.py` builds the sets (P6-D6),
 `scripts/sbc_report.py` scores them. **14 cells complete** across 3 training seeds, 2 arms, 2
 tiers and 3 targets (P6-D8, P6-D11). G3 is closed. The seed repeat P6-D8 owed is discharged,
-and it corrected P6-D8's conditioning claim, see G3b. **The one remaining item is G13 below**,
-which is a build rather than a run.
+and it corrected P6-D8's conditioning claim, see G3b. **G13, the one remaining item, is DONE
+2026-11-16 (P6-D25), so A1 IS COMPLETE.**
 
 The core build, and the thing that makes v2 publishable. Draw theta from the prior,
 simulate with TauREx, inject into real OOT-derived noise held out by frame index, run the
@@ -84,11 +84,21 @@ them. This is the non-circular calibration check (G3) and the large benchmark (G
 Read Talts et al. on SBC and Lemos et al. on TARP. The module landed as `mirage/eval/sbc.py`
 rather than `scripts/sbc.py`, to sit beside `mirage/eval/coverage.py`.
 
-**Scope the depth-noise construction honestly.** G13 is now load-bearing: OOT residuals are
-flux noise, and Tier 1 needs depth noise. Do it properly on **WASP-96b**, where we own the
-exoTEDRF plus batman pipeline end to end, by running the light-curve fit on pseudo-transits
-injected into OOT segments. For the other two, use the flux-noise approximation and state
-it. Do not quietly treat all three alike.
+**Scope the depth-noise construction honestly.** G13 was load-bearing: OOT residuals are
+flux noise, and Tier 1 needs depth noise. Done properly on **WASP-96b**, where the exoTEDRF
+plus batman pipeline is mine end to end. For the other two, use the flux-noise approximation
+and state it. Do not quietly treat all three alike.
+
+**DONE 2026-11-16 (P6-D25), and the answer is split.** `scripts/depth_noise_wasp96.py`, 280
+integrations, 90 bins, three arms including a white-noise control through the identical fit.
+**The recipe as specified does not run**, because the transit is 2.66 h and the longest OOT
+block is 2.27 h, so prayer-bead injection on the real time axis replaces injection into an
+OOT segment. **Amplitude is fine.** The control recovers the published error bar to 0.99x,
+and the depth arms' 0.67x and 0.83x are a prayer-bead bias predicted in closed form to 1.5
+percent, not a property of the data. **Structure is not fine.** Depth noise correlates across
+wavelength at 0.22-0.48 mean absolute off-diagonal against the flux route's 0.159, with a
+31-37 ppm common-mode depth offset that is H10's free baseline offset showing up as a
+measurement. Tier 1 on WASP-39b and K2-18b is unchanged and still stated as an approximation.
 
 **Frame counts bite.** WASP-39b has 3,241 frames, the others 56 and 96. Frame-resampling
 uncertainty is available on WASP-39b only. Say so.
@@ -153,12 +163,28 @@ a seventh of the circular gain; the rest was never calibration. **G3 and G9 clos
 not by repair.** Carry the four honest limits in P6-D22 into the manuscript, in particular that
 A2's ESS edge is partly mechanical because its proposals are simply wider.
 
-### A3. H5, the noise-proxy test. (3 to 5 days)
+### A3. H5, the noise-proxy test. (3 to 5 days) UNBLOCKED 2026-11-16.
 
 Condition on three inputs: Sigma-hat from OOT flux, Sigma-hat from pseudo-transit depth
 noise, and published diagonal errors. If the conditioning paradox disappears with depth-noise
 Sigma-hat, there is a mechanism. If it persists, the paradox is real and it is the headline.
 Pairs naturally with A1, since A1 produces the depth-noise machinery.
+
+**The third input now exists**, `data/inject/wasp96_depth_noise*.npz` from P6-D25, on the
+model grid with no regridding step because `abc_rad_wasp96` was built from this very spectrum.
+**This is the last open experiment on Track 1.**
+
+**A PREDICTION ON THE RECORD, WRITTEN BEFORE RUNNING, per the H2 precedent.** The depth-noise
+Sigma-hat differs from the flux Sigma-hat exactly and only in the direction H5 names, more
+correlated across wavelength and with a much stronger leading mode, top eigenvalue 15.0 to
+45.0 against 7.4. So if the paradox is a noise-proxy artifact it should move under this input.
+**If it does not move, the paradox is real and it is the headline**, and that outcome is the
+more likely one given P6-D17 already found the conditioning effect survives on calibration.
+
+**Two cautions for whoever runs it.** The two depth pools bracket rather than agree, so run
+both and report both; a result that holds on one pool only is not a result. And WASP-96b is
+the only target with a depth-noise Sigma-hat, so A3 is a single-target test and cannot be
+written as if it settles H5 on the other two.
 
 ### A4. H3, the floor sweep. (3 to 5 days)
 
@@ -336,6 +362,20 @@ source rather than a secondary summary, and the script renamed with its docstrin
 > not committed. Recommended route: a 6-parameter Tier-1 set via `inject_real_noise.py --build` in
 > `mirage-taurex`, which needs Track 1's machine.
 
+> **UNBLOCKED AND FIRST RESULT IN, 2026-11-16 (P6-D24).** Track 1 built the ladder. P6-D15 was
+> right that it is a build, and it was bigger than either of us thought: ABC is a population of
+> 73,044 distinct planets whose geometry sits outside theta, so the set resamples ABC's own joint
+> theta-geometry rather than fixing a radius. `sbc_report.py` also had to stop hardcoding 7
+> parameters. Set at `data/inject/wasp39_tier1_abc.hdf`.
+>
+> **The answer is that P6-D3 holds.** Translated arm cov@68 **0.483** against nominal 0.68, TARP
+> dev 0.335. Untranslated ABC controls 0.668 and 0.686, dev 0.090 and 0.110, same injections.
+> Translation damages calibration against ground-truth labels, not only against the NS anchor, so
+> the P6-D8 evaluator-flip exposure is discharged and **G1b closes**.
+>
+> **The interpretation and write-up are still Track 2's.** The control arms were added beyond V1b
+> as written, since the translated number is not comparable to P6-D3 without them.
+
 **This requirement did not exist before 2026-11-08 and it comes from P6-D8.** A1 found that
 conditioning HELPS against prior-draw labels while P6-D2 found it HURTS against the
 TauREx-NS anchor. The ranking flips with the evaluator. P6-D3's translation verdict was
@@ -446,8 +486,7 @@ Revised 2026-11-08.
    cannot see. **Z2 is fully closed.** Only regenerating fig5 from `configs/h9_*` remains.
 3. ~~**A1**~~ **14 of 15 cells DONE 2026-11-08 (P6-D8, P6-D11).** The s43 and s44 seed repeat
    and both extra targets are discharged, and the repeat corrected P6-D8's conditioning claim
-   (G3b). The sole remainder is **G13**, the WASP-96b depth-noise construction, which is a
-   build and not a run.
+   (G3b). **COMPLETE 2026-11-16**: the sole remainder, **G13**, landed as P6-D25.
 4. ~~**V1**~~ DONE 2026-11-07 (P6-D3), by Track 1.
 5. **A5 is now gating, not hardening.** P6-D2 and P6-D8 reach opposite conclusions about
    conditioning, and which one the paper states is decided entirely by whether TauREx-NS is a
@@ -462,9 +501,9 @@ Revised 2026-11-08.
    model. The gate is H8 alone now.
 6. **V7**, **V2** by 2026-11-16. **V6**, **V1b** by 2026-11-23. **V5** verification by
    2026-11-16, result by 2026-11-30.
-7. **A2** once the A1 labels are consolidated. **A3**, **A4** and the sigma-range retrain as
-   time allows, in that order, since the retrain is the actual fix that P6-D7 and P6-D8
-   jointly point at.
+7. ~~**A2**~~ DONE 2026-11-16 (P6-D22). ~~**A4**~~ DONE 2026-11-16 (P6-D23). **A3 is now the
+   only open experiment on Track 1**, unblocked by P6-D25, followed by the sigma-range retrain,
+   which is the actual fix that P6-D7 and P6-D8 jointly point at.
 8. Writing starts after A5 and the required Track 2 set. Either one missing changes what the
    paper is allowed to claim.
 
