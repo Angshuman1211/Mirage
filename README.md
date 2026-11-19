@@ -382,10 +382,12 @@ data-handling pipeline, the translation study, and related work.
 | V3 | H1 as a mechanism check | built and smoke-tested, **not run** (P6-D16) |
 | V1b | Score the translated arm on the A1 injection ladder | build and first result **done** (P6-D24), interpretation open |
 
-**What is left.** On Track 1, every experiment is closed. What remains is an optional σ-range
-retrain, regenerating fig5, and the v2 manuscript. On Track 2, running V7 and V3 now that the spectra they
-need are in the repository, the inferential half of V2, and the V1b write-up. arXiv v2 goes last,
-by decision (P6-D10).
+**What is left.** On Track 1, every experiment is closed and fig5 was rebuilt on the eighteen
+device-matched H9 arms on 2026-11-18 (P6-D27), which completed A1. The optional
+σ-range retrain is also **done** (P6-D28, trained on a Kaggle T4 on 2026-11-19): it did not fix the
+conditioning paradox, it widened it, the cov arm's real-data JS rising from 0.427 to 0.490 while
+no-cond held at 0.342. What remains is the v2 manuscript. On Track 2, running V7 and V3 now that the spectra they need are in the repository,
+the inferential half of V2, and the V1b write-up. arXiv v2 goes last, by decision (P6-D10).
 
 ---
 
