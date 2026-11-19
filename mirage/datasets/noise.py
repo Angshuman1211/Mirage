@@ -60,9 +60,12 @@ class CorrelatedNoiseGenerator(NoiseGenerator):
         ou_length_max: float = 3.00,
         jitter: float = 1e-8,
         random_seed: int = 42,
+        sigma_log: bool = False,
     ) -> None:
         if sigma_min < 0 or sigma_max < 0:
             raise ValueError("sigma values must be non-negative!")
+        if sigma_log and sigma_min <= 0:
+            raise ValueError("sigma_log=True requires sigma_min > 0")
         if not 0.0 <= rho_min <= rho_max <= 1.0:
             raise ValueError("require 0 <= rho_min <= rho_max <= 1")
 
@@ -75,6 +78,16 @@ class CorrelatedNoiseGenerator(NoiseGenerator):
         self.ou_length_min = ou_length_min
         self.ou_length_max = ou_length_max
         self.jitter = jitter
+        # P6-D7 measured real sigma 23-139x BELOW sigma_min, so the conditioning
+        # embeddings never saw real-scale noise. Widening the range downward is
+        # the fix P6-D8 names, but a UNIFORM draw over [2e-3, 0.3] puts only
+        # ~2.7% of samples below 0.01, so the model still almost never sees the
+        # real regime and the retrain would fail for a reason unrelated to the
+        # hypothesis. sigma_log=True draws log-uniformly instead, giving every
+        # decade equal weight. Default False, so every existing config and every
+        # published result is bit-identical: the False branch makes the same
+        # single rng.uniform call as before and consumes the same RNG state.
+        self.sigma_log = sigma_log
         self.rng = np.random.default_rng(random_seed)
 
         # Covariance cached between sample_error_bars and sample_noise
@@ -92,7 +105,11 @@ class CorrelatedNoiseGenerator(NoiseGenerator):
         wlen = np.asarray(wlen, dtype=np.float64).reshape(-1)
         n = wlen.size
 
-        sigma = self.rng.uniform(self.sigma_min, self.sigma_max)
+        if self.sigma_log:
+            sigma = float(np.exp(self.rng.uniform(np.log(self.sigma_min),
+                                                  np.log(self.sigma_max))))
+        else:
+            sigma = self.rng.uniform(self.sigma_min, self.sigma_max)
         rho = self.rng.uniform(self.rho_min, self.rho_max)
         se_length = self.rng.uniform(self.se_length_min, self.se_length_max)
         ou_length = self.rng.uniform(self.ou_length_min, self.ou_length_max)
