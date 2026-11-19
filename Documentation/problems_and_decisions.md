@@ -1552,3 +1552,114 @@ Fed structure is the mean absolute off-diagonal of the correlation the arm actua
 5. The context shares are measured on seed 42's trained weights and are architectural ratios, not universal constants.
 
 **A3 IS DONE and H5 CLOSES.** `scripts/a3_noise_proxy.py`, `scripts/fig_a3_noise_proxy.py`, figure `figures/fig_a3_noise_proxy.png`, scores `data/a3/a3_scores.npz`. The script backs up and restores the published per-arm sample files around its own runs, because `real_ess.sample()` writes fixed filenames, and it now also removes the generic `real_ess_samples.npz` it necessarily overwrites, which `ot_calibrate.py` and `taurex_retrieve.py` read by default, so a stale A3 posterior cannot be silently consumed as a published one. **This was the last open experiment on Track 1.**
+
+---
+
+### P6-D27 — fig5 rebuilt from the eighteen H9 arms: the device artifact is isolated to exactly the arms that ran on the wrong device [Phase 6, 2026-11-18, MAJOR]
+
+**What this closes.** P6-D2 retracted `fig5_abc_ablation.png` and required it be regenerated from `configs/h9_*`. P6-D12 and P6-D17 each closed with "regenerate fig5" as the next action. This is that regeneration, and it is the last item on A1.
+
+**A bug found before anything was plotted.** `run_noisecond_ablation.py` built each arm's noise generator from, in its own comment, "any arm's block". That is false. The `+sigma` configs carry an **incomplete** generator, `sigma_min` and `sigma_max` with no `ou_length_*` or `se_length_*`, because a sigma-only arm never needed the kernel parameters. Had the `+sigma` arm been evaluated with its own block as source, every arm would have been scored under **different injected noise** and the comparison would have been silently invalid. The source is now a preference chain, `+sigma+cov` then `no-cond` then any, and the wrong comment is replaced with the reason. Because the fix changes which noise the evaluation injects, I re-ran all three arms rather than merging a new `+sigma` column into the stored two-arm files.
+
+**The re-run re-verifies the pipeline, which was the point of doing it in full.** For the two arms that already existed, across all six family-seed files, `ld__no_cond`, `ld__psigmapcov`, `truths` and `planet_sigma` come back **bit-identical**, max abs difference exactly 0.0. The sample arrays differ, as they must, because the posterior draws are stochastic while the log-density of the true theta is deterministic given fixed weights. Identical deterministic outputs from an independent invocation is direct evidence that the checkpoints, the test planets and the injected noise are unchanged.
+
+**The draw-noise floor, measured rather than assumed.** Because the old and new sample sets are independent draws from the same trained weights on the same planets, their coverage difference is a clean measurement of posterior-draw noise: **rms 0.0118, max 0.0233** over twelve arm-seed pairs. This is the same size as the seed-to-seed spread, so **most of the "seed spread" in panels (a) and (b) is draw noise, not training-seed variation**, and 0.0118 is a floor on what the panel can resolve. It is drawn on the figure. An earlier read of this check used a broken broadcast and reported 0.005; that number was wrong and understated the floor.
+
+**Coverage at 68 percent, device-matched, three training seeds.**
+
+| family | arm | seeds | mean | seed sd | published | published error |
+|---|---|---|---|---|---|---|
+| abc | no-cond | 0.700 / 0.697 / 0.693 | 0.697 | 0.003 | 0.587 | **+0.110** |
+| abc | +sigma | 0.673 / 0.700 / 0.720 | 0.698 | 0.023 | 0.687 | +0.011 |
+| abc | +sigma+cov | 0.690 / 0.707 / 0.687 | 0.694 | 0.011 | 0.687 | +0.007 |
+| rad | no-cond | 0.694 / 0.677 / 0.694 | 0.689 | 0.010 | 0.817 | **-0.128** |
+| rad | +sigma | 0.689 / 0.691 / 0.700 | 0.693 | 0.006 | — | — |
+| rad | +sigma+cov | 0.694 / 0.711 / 0.694 | 0.700 | 0.010 | 0.700 | **+0.000** |
+
+**THE SHARPEST RESULT HERE, and it is new.** The two published **conditioned** arms were trained on CUDA and they reproduce to within 0.011, one of them to 0.000. The two published **no-cond** arms were trained on MPS and they are wrong by +0.110 and -0.128, **in opposite directions**. The device artifact is isolated precisely to the arms that ran on the wrong device, and it does not even have a consistent sign: on ABC the under-trained baseline under-covers, on radius it over-covers, which is what an under-trained flow does when it collapses in one case and stays over-dispersed in the other. P6-D1 and P6-D12 inferred the device effect from training loss. This measures it on the published statistic itself, and the arms that should be unaffected are unaffected. That is as clean a control as this project has.
+
+**The conditioning effect, device-matched.** ABC: +sigma minus no-cond is **+0.001**, +sigma+cov minus no-cond is **-0.002**. Radius: **+0.005** and **+0.011**. Every one of these is smaller than the measured draw noise of 0.0118 on a single arm. Compare P6-D2's two-arm evaluation, which gave +0.006 on ABC and +0.001 on radius: **the sign of the ABC effect flips between two evaluations of the same checkpoints**. The effect is not small, it is absent, and its apparent sign is set by which posterior draws were taken.
+
+**The adaptivity claim, which is the second thing the published figure asserted.** Published ABC, one seed: Delta log-density of +0.642 at low sigma, +0.586 at mid, +0.869 at high, read as conditioning helping most where noise is worst. Device-matched, three seeds, mean +- seed sd:
+
+| family | arm | low-sigma | mid-sigma | high-sigma | gradient (high - low) |
+|---|---|---|---|---|---|
+| abc | +sigma | -0.015 +- 0.030 | -0.048 +- 0.040 | -0.022 +- 0.044 | -0.007 +- 0.031 |
+| abc | +sigma+cov | +0.008 +- 0.104 | -0.020 +- 0.076 | +0.048 +- 0.059 | +0.039 +- 0.146 |
+| rad | +sigma | -0.164 +- 0.343 | -0.091 +- 0.093 | -0.167 +- 0.135 | -0.002 +- 0.285 |
+| rad | +sigma+cov | -0.344 +- 0.311 | -0.257 +- 0.251 | -0.150 +- 0.204 | +0.194 +- 0.124 |
+
+The published +0.6 to +0.9 collapses to about zero on ABC and goes **negative everywhere on the radius family**, which is the family actually used on real data. Three of the four gradients are inside one seed sd of zero. The fourth, radius +sigma+cov at +0.194 +- 0.124, is 1.6x and is the only surviving hint of sigma dependence, but **it sits on a curve that is below zero at every tercile**. Stated honestly, that is not "conditioning helps most where noise is worst", it is "conditioning hurts least where noise is worst". Do not write it as adaptivity.
+
+**What the new figure shows.** Three panels. (a) and (b), coverage by arm for each family, bars for the three-seed mean, dots for individual seeds, error bars at the measured draw-noise floor, and the published single-seed values kept on the plot as crimson crosses rather than deleted, so the figure shows the claim that did not reproduce next to what replaced it. (c), Delta log-density by sigma tercile for both conditioned arms of both families, four bars per tercile, with the published ABC values as crosses. Panel (c) tests the gradient three independent ways beyond the one the paper plotted, and none of them carries it.
+
+**Status.** `figures/fig5_abc_ablation.png` regenerated. `scripts/make_figures.py` `fig5()` now reads `data/real_ess/h9_{abc,rad}_s{42,43,44}.npz` and no longer reads `abc_ablation.npz`, which is the single-seed device-mixed file and should not be read again. **A1 is complete.** The figure is now consistent with P6-D1, P6-D2 and P6-D12 instead of contradicting them.
+
+---
+
+### P6-D28 — sigma-range retrain configured, with the sampling law changed, and blocked on CUDA [Phase 6, 2026-11-18]
+
+**The problem it targets.** P6-D7 established that real WASP-39b sigma of 2.16e-3 sits 23x to 139x **below** the trained sigma range, and P6-D17 measured that the resulting penalty is about +0.085 and is **arm-independent**, so it is a property of the setup rather than of any conditioning scheme. P6-D26 then ruled out the inference-time Sigma-hat as the source of the conditioning paradox, which leaves the training distribution as the remaining candidate. This retrain is the test of that candidate.
+
+**A change that is not cosmetic and without which the retrain would have been pointless.** `CorrelatedNoiseGenerator` draws sigma **uniformly**. Lowering `sigma_min` from 0.05 to 0.001 under a uniform law puts only **2.5 percent** of draws below 0.01 and leaves the median at 0.150, so the model would still almost never see real-data noise and the experiment would fail for a reason unrelated to the hypothesis. I added `sigma_log` to `mirage/datasets/noise.py`, drawing log-uniformly between the bounds. Measured over 40,000 draws on [1e-3, 0.3], the two laws differ by more than an order of magnitude where it matters:
+
+| law | median | fraction below 0.01 | fraction below real 2.16e-3 |
+|---|---|---|---|
+| uniform, the current behaviour | 0.150 | 0.030 | 0.004 |
+| log-uniform, `sigma_log: true` | 0.017 | 0.405 | 0.135 |
+
+Under the uniform law the model would see noise at or below the real level in **4 draws per thousand**, so the retrain would have failed for a reason unrelated to the hypothesis. Under the log-uniform law it is **135 per thousand**. The default path is `sigma_log: false` and was verified **bit-identical** to the previous semantics by direct array comparison of the drawn sigmas, so no stored result can shift.
+
+**What exists.** Six configs, `configs/sigrange_rad_{nocond,cov}_s{42,43,44}`, copied from the corresponding `h9_rad_*` with `sigma_min: 0.001`, `sigma_log: true` and `device: cuda`, each carrying a header stating the P6-D7 and P6-D17 rationale. Runner `scripts/run_sigrange_retrain.sh`, about 5.5 hours for all six.
+
+**The prediction, written before the run as P6-D8 requires.** If the paradox is driven by the training sigma range, the cov arm's mean 1-D JS to the NS anchor on real WASP-39b falls from 0.426 toward the no-cond arm's 0.344 and the +0.083 gap at least halves. If it does not move, then combined with P6-D26 the paradox is **neither the inference-time Sigma-hat nor the training sigma range**, and the remaining explanation is that conditioning at this context share is an architectural change that costs real-data accuracy on its own. That is the stronger outcome for the paper and the one P6-D26's context-share measurement predicts.
+
+**Why it did not run here.** This machine has no CUDA; `torch.cuda.is_available()` is false and only MPS is present. P6-D1 is precisely the finding that MPS under-trains these models, ABC best val 1.923 on MPS against 1.390 on CUDA, and P6-D27 above shows that artifact landing directly on the published coverage numbers. Training these arms on MPS would manufacture the exact artifact this phase exists to remove. The runner therefore carries a guard that refuses to start without CUDA and prints the reason; the guard was confirmed to fire. **This is blocked on hardware, not on analysis, and the outcome is to be recorded here as the result of P6-D28.**
+
+**RESULT (2026-11-19). The prediction FAILS, and it fails in the informative direction: the gap GREW by 78 percent.** All six arms trained on a Kaggle T4 after the CUDA block above, 1000 draws each on the real WASP-39b input through the same `real_ess.py` plus `real_compare.py` path that reproduced the three published values exactly in P6-D2.
+
+| arm | s42 | s43 | s44 | mean +- sd | H9 baseline |
+|---|---|---|---|---|---|
+| no-cond | 0.342 | 0.337 | 0.348 | **0.3423 +- 0.0055** | 0.3433 +- 0.0032 |
+| +sigma+cov | 0.501 | 0.514 | 0.456 | **0.4903 +- 0.0304** | 0.4267 +- 0.0136 |
+| gap | | | | **+0.1480, 6.8x pooled seed sd** | +0.0833, 8.4x |
+
+Predicted: cov falls toward 0.344 and the gap at least halves, to 0.041 or less. Observed: cov **degrades** by +0.0637, which is 2.9x the pooled seed sd, while no-cond is unchanged at -0.0010, which is 0.0x. Putting the real sigma inside the trained range made the conditioned arm **worse**, and left the unconditioned arm alone.
+
+**The mechanism, and this is the part worth keeping.** Lowering `sigma_min` made the conditioned posterior SHARPER on every parameter while moving it FURTHER from the anchor. Mean 68 percent interval width across 3 seeds, as a ratio to the corresponding H9 arm:
+
+| param | no-cond ratio | +sigma+cov ratio |
+|---|---|---|
+| planet_radius | 0.97 | 0.82 |
+| T | 1.05 | 0.60 |
+| log_H2O | 1.08 | 0.47 |
+| log_CO2 | 1.12 | 0.62 |
+| log_CH4 | 1.19 | 0.77 |
+| log_CO | 1.03 | 0.75 |
+| log_NH3 | 1.15 | 0.46 |
+| **mean of the ratios** | **1.08** | **0.64** |
+
+Mean of the per-parameter ratios is the right summary because the reported JS is itself an unweighted mean over the same seven parameters. A ratio of mean widths would read 1.06 and 0.60, but that is dominated by T's 880 K scale and is really T's ratio alone.
+
+The cov arm narrowed by about a third on average and on every parameter; the no-cond arm did not narrow at all. At the same time the cov T median moved from 1617 K to **1858 K** against the anchor's 608 K, with its T width halving from 413 K to 247 K. Narrower intervals centred further away is exactly how a 1-D JS saturates: at seed 42 the cov arm is at or next to the 0.69 disjoint ceiling on **four of seven** parameters (T 0.693, log_CO2 0.693, log_H2O 0.690, planet_radius 0.675, log_NH3 0.578), whereas no-cond stays between 0.146 and 0.445 because its intervals still overlap the anchor. The no-cond T interval [592, 1546] contains 608 K; the cov interval [1754, 1972] does not come near it.
+
+So widening the training sigma range did not remove the sim-to-real bias, it removed the conditioned arm's remaining humility about that bias. Conditioning tells the model how much noise to expect, the real spectrum's noise is genuinely small, and the model correctly concludes it should be confident, about a spectrum it is reading wrongly for reasons that have nothing to do with noise.
+
+**What this closes.** Combined with P6-D26, the conditioning paradox is **neither the inference-time Sigma-hat nor the training sigma range**. Both candidates are now tested and both are negative, and the training-range test is negative in the strong direction rather than merely null. The remaining explanation stands as P6-D28 anticipated: conditioning at this context share is an architectural change that costs real-data accuracy on its own. The paper claim strengthens from "conditioning does not transfer" to "conditioning degrades real-data retrieval, and making its conditioning signal more faithful to the real data makes the degradation worse".
+
+**Training record.** Early stopping fired in all six; `stage_patience` is 50 and every arm stopped exactly 50 epochs past its best, which is the internal consistency check that each `model__best.pt` is the global best.
+
+| arm | epochs | best epoch | best test loss |
+|---|---|---|---|
+| nocond_s42 | 267 | 217 | 0.870841 |
+| nocond_s43 | 272 | 222 | 0.845447 |
+| nocond_s44 | 355 | 305 | 0.860207 |
+| cov_s42 | 258 | 208 | 0.834743 |
+| cov_s43 | 237 | 187 | 0.853820 |
+| cov_s44 | 255 | 205 | 0.868099 |
+
+**Do not compare these losses to the H9 losses.** H9 sits near 1.13 and these near 0.86, and that is not an improvement: `sigma_log` changed the validation noise distribution too, so most validation draws now carry far less noise and the loss is mechanically lower. The two numbers are computed on different data distributions. The real-data JS is the only comparable quantity, because both arms are scored on the same real spectrum.
+
+**Two caveats on the comparison.** First, these six arms trained on a T4 while the H9 arms trained on an RTX 5070. A control arm retrained `h9_rad_cov_s42` from scratch on the T4 for 60 epochs and was compared against the stored 5070 curve: cross-device deviation mean 0.0170 and max 0.0503, against cross-seed deviation on the 5070 itself of mean 0.0167 and max 0.0562 at seed 43, and mean 0.0321 and max 0.0807 at seed 44. The cross-device deviation is the smallest of the three, so the device difference is inside the run-to-run spread of the reference GPU. Reproduced by `scripts/kaggle_control_audit.py`. Note that the first gate for this control used `max_dev < 0.05`, which **fails `h9_rad_cov_s43`, a published 5070 arm**, so that threshold was testing nothing and was replaced with the measured spread. Second, the observed effect at +0.0637 is 2.9x the pooled seed sd and the direction is consistent across all three seeds, so it does not rest on the device argument.
+
+**Artefacts.** `configs/sigrange_rad_{nocond,cov}_s{42,43,44}` with `model__best.pt`, history CSVs and a `TRAINING_COMPLETE` marker; `data/real_ess/real_ess_samples_sigrange_rad_*.npz`. Kaggle tooling: `scripts/kaggle_pack.sh`, `scripts/make_kaggle_notebook.py`, `scripts/kaggle_make_kernels.sh`, `scripts/kaggle_chain.sh`, `scripts/kaggle_salvage.py`, `scripts/kaggle_control_audit.py`. The six arms are registered in `real_ess.py` alongside the H9 arms; defaults unchanged.

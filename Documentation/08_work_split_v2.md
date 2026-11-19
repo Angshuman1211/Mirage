@@ -504,7 +504,8 @@ Revised 2026-11-08.
    The evaluation pass is also **DONE 2026-11-14 (P6-D17)**: six A1 cells on the radius sigma
    arms populate the Phase-4 sigma row, and against injection labels the three arms fall in
    conditioning order on every calibration statistic, which P6-D12's in-distribution null
-   cannot see. **Z2 is fully closed.** Only regenerating fig5 from `configs/h9_*` remains.
+   cannot see. **Z2 is fully closed**, and fig5 was regenerated from `configs/h9_*` on
+   2026-11-18 (P6-D27), which was its last open dependency. Nothing on H9 remains.
 3. ~~**A1**~~ **14 of 15 cells DONE 2026-11-08 (P6-D8, P6-D11).** The s43 and s44 seed repeat
    and both extra targets are discharged, and the repeat corrected P6-D8's conditioning claim
    (G3b). **COMPLETE 2026-11-16**: the sole remainder, **G13**, landed as P6-D25.
@@ -523,9 +524,13 @@ Revised 2026-11-08.
 6. **V7**, **V2** by 2026-11-16. **V6**, **V1b** by 2026-11-23. **V5** verification by
    2026-11-16, result by 2026-11-30.
 7. ~~**A2**~~ DONE 2026-11-16 (P6-D22). ~~**A4**~~ DONE 2026-11-16 (P6-D23). ~~**A3**~~ DONE
-   2026-11-17 (P6-D26). **Every Track 1 experiment is now closed.** What remains is the
-   sigma-range retrain, which is optional and is the fix P6-D7 and P6-D8 jointly point at,
-   regenerating fig5, and the manuscript.
+   2026-11-17 (P6-D26). ~~**fig5**~~ **DONE 2026-11-18 (P6-D27)**, rebuilt on the eighteen
+   device-matched H9 arms; **A1 is complete**. ~~**sigma-range retrain**~~ **DONE
+   2026-11-19 (P6-D28)**, trained on a Kaggle T4 since this machine has no CUDA. It was the fix
+   P6-D7 and P6-D17 jointly pointed at and it **failed in the strong direction**: the gap widened
+   from +0.083 to +0.148 because the conditioned posterior sharpened by about a third while moving
+   further from the anchor. **Every Track 1 experiment is now closed.** What remains is the
+   manuscript.
 8. Writing starts after A5 and the required Track 2 set. Either one missing changes what the
    paper is allowed to claim.
 
