@@ -64,6 +64,18 @@ for _s in (42, 43, 44):
     STATS[f"h9_rad_cov_s{_s}"] = "data/abc_rad/abc_rad_train.hdf"
 _COV_ARMS = _COV_ARMS + tuple(f"h9_rad_cov_s{_s}" for _s in (42, 43, 44))
 
+# Sigma-range retrain (P6-D28). Identical to the H9 radius arms except that the
+# injected noise sigma is drawn LOG-uniformly from 1e-3 instead of uniformly
+# from 0.05, which puts the real WASP-39b sigma of 2.16e-3 INSIDE the trained
+# range rather than two decades below its floor. Same dataset and same 52-bin
+# grid, so the H9 normalisation stats apply unchanged.
+for _s in (42, 43, 44):
+    ARMS[f"sigrange_rad_nocond_s{_s}"] = f"configs/sigrange_rad_nocond_s{_s}"
+    ARMS[f"sigrange_rad_cov_s{_s}"] = f"configs/sigrange_rad_cov_s{_s}"
+    STATS[f"sigrange_rad_nocond_s{_s}"] = "data/abc_rad/abc_rad_train.hdf"
+    STATS[f"sigrange_rad_cov_s{_s}"] = "data/abc_rad/abc_rad_train.hdf"
+_COV_ARMS = _COV_ARMS + tuple(f"sigrange_rad_cov_s{_s}" for _s in (42, 43, 44))
+
 
 def _real_oot_frames(k=100):
     """Real PRISM OOT frames on the 52-bin grid, model (stored) bin order.

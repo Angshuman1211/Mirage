@@ -114,39 +114,110 @@ def fig4():
 
 
 def fig5():
-    # ABC ablation: noise-conditioning WINS on synthetic data (the honest other half)
-    d = np.load(OUT / "abc_ablation.npz", allow_pickle=True)
-    tr = d["truths"]; ps = d["planet_sigma"]
-    ORANGE = "#e67e22"
-    arms = [("no-cond", "no_cond", GREY), ("+σ", "psigma", ORANGE), ("+σ+cov", "psigmapcov", BLUE)]
+    """ABC + radius noise-conditioning ablation, rebuilt from the H9 arms.
 
-    def cov68(key):
-        s = d["s__" + key]                              # (P, N, D)
+    The published version of this figure read `abc_ablation.npz`: ONE seed, and
+    with the no-cond arms trained on MPS while the conditioned arms trained on
+    CUDA (P6-D1). Both no-cond runs were under-trained, so the 0.587 baseline is
+    the coverage of a model that did not train, and the apparent conditioning win
+    was a device artifact (P6-D12). This version reads the eighteen device-matched
+    H9 arms, three training seeds per family per arm, and plots the seed spread
+    the single-seed figure could not show.
+    """
+    SEEDS = (42, 43, 44)
+    ARMS = [("no-cond", "no_cond", GREY),
+            ("+σ", "psigma", "#e67e22"),
+            ("+σ+cov", "psigmapcov", BLUE)]
+    # Published single-seed values, kept on the plot as the claim that did not
+    # reproduce rather than deleted. ABC from abc_ablation.npz, radius from the
+    # 07 section 4.2 table. The two ABC conditioned arms were identical at 0.687.
+    PUB = {"abc": {"no_cond": 0.587, "psigma": 0.687, "psigmapcov": 0.687},
+           "rad": {"no_cond": 0.817, "psigmapcov": 0.700}}
+    FAM = [("abc", "ABC (6-param)"), ("rad", "radius (7-param, used on real data)")]
+
+    # Measured by re-drawing every posterior for the two arms that existed
+    # before this re-run and recomputing coverage. rms 0.0118, max 0.0233 over
+    # twelve arm-seed pairs, with the trained weights and the test planets held
+    # fixed. It is a floor on what panels (a) and (b) can resolve, and it is the
+    # same size as the seed-to-seed spread, so most of that spread is draw noise
+    # rather than training-seed variation.
+    DRAW_NOISE = 0.0118
+
+    def cov68(s, tr):
         lo = np.quantile(s, 0.16, axis=1); hi = np.quantile(s, 0.84, axis=1)
         return float(np.mean((lo <= tr) & (tr <= hi)))
 
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11, 4))
-    covs = [cov68(a[1]) for a in arms]
-    ax1.bar(range(3), covs, color=[a[2] for a in arms], width=0.6)
-    ax1.axhline(0.68, ls="--", color="k", lw=1)
-    ax1.text(2.45, 0.695, "nominal 68%", ha="right", fontsize=8)
-    ax1.set_xticks(range(3)); ax1.set_xticklabels([a[0] for a in arms])
-    ax1.set_ylabel("coverage @ 68%"); ax1.set_ylim(0, 1)
-    ax1.set_title("(a) ABC: conditioning restores coverage", fontsize=10)
-    for i, c in enumerate(covs):
-        ax1.text(i, c + 0.015, f"{c:.3f}", ha="center", fontsize=9)
+    data = {}
+    for fam, _ in FAM:
+        per = {}
+        for _, key, _c in ARMS:
+            vals, gaps = [], []
+            for sd in SEEDS:
+                f = OUT / f"h9_{fam}_s{sd}.npz"
+                if not f.exists():
+                    continue
+                z = np.load(f, allow_pickle=True)
+                if "s__" + key not in z.files:
+                    continue
+                vals.append(cov68(z["s__" + key], z["truths"]))
+                if key != "no_cond":
+                    ps = z["planet_sigma"]
+                    b = np.digitize(ps, np.quantile(ps, [1 / 3, 2 / 3]))
+                    d = z["ld__" + key] - z["ld__no_cond"]
+                    gaps.append([d[b == k].mean() for k in range(3)])
+            if vals:
+                per[key] = (np.array(vals), np.array(gaps) if gaps else None)
+        data[fam] = per
 
-    ldn, ldc = d["ld__no_cond"], d["ld__psigmapcov"]
-    b = np.digitize(ps, np.quantile(ps, [1 / 3, 2 / 3]))
-    gaps = [(ldc[b == k] - ldn[b == k]).mean() for k in range(3)]
-    ax2.bar(range(3), gaps, color=GREEN, width=0.6)
-    ax2.set_xticks(range(3)); ax2.set_xticklabels(["low-σ", "mid-σ", "high-σ"])
-    ax2.set_ylabel("Δ log-density  (+σ+cov − no-cond)")
-    ax2.set_title("(b) ABC: cov helps most at high noise (adaptivity)", fontsize=10)
-    for i, g in enumerate(gaps):
-        ax2.text(i, g + 0.01, f"+{g:.2f}", ha="center", fontsize=9)
-    fig.suptitle("Noise-conditioning WINS on synthetic ABC (Phase 2) — where truth is known",
-                 fontsize=12)
+    fig, ax = plt.subplots(1, 3, figsize=(15, 4.6))
+
+    for a, (fam, title) in zip(ax[:2], FAM):
+        present = [(lab, key, c) for lab, key, c in ARMS if key in data[fam]]
+        for i, (lab, key, c) in enumerate(present):
+            v = data[fam][key][0]
+            a.bar(i, v.mean(), color=c, width=0.6, alpha=0.85)
+            a.errorbar(i, v.mean(), yerr=DRAW_NOISE, color="k", lw=1.4,
+                       capsize=5, zorder=2,
+                       label="posterior-draw noise" if i == 0 else None)
+            a.plot([i] * len(v), v, "o", color="k", ms=4, zorder=3)
+            a.text(i, v.mean() + 0.055, f"{v.mean():.3f}", ha="center", fontsize=9)
+            if key in PUB[fam]:
+                a.plot(i, PUB[fam][key], "X", color="crimson", ms=11, zorder=4,
+                       label="published, 1 seed" if i == 0 else None)
+        a.axhline(0.68, ls="--", color="k", lw=1)
+        a.text(-0.45, 0.70, "nominal 68%", ha="left", fontsize=8)
+        a.set_xticks(range(len(present)))
+        a.set_xticklabels([p[0] for p in present])
+        a.set_ylabel("coverage @ 68%"); a.set_ylim(0, 1)
+        a.set_title(f"{title}\ndots = training seeds, bars = draw noise",
+                    fontsize=9.5)
+        a.legend(fontsize=7.5, loc="lower left")
+
+    # Four bars per tercile, both conditioned arms of both families, so the
+    # gradient is tested three ways and not just on the arm the paper plotted.
+    BARS = [("abc", "psigma", "ABC +\u03c3", -0.30, "#f0b27a"),
+            ("abc", "psigmapcov", "ABC +\u03c3+cov", -0.10, "#e67e22"),
+            ("rad", "psigma", "radius +\u03c3", 0.10, "#85c1e9"),
+            ("rad", "psigmapcov", "radius +\u03c3+cov", 0.30, BLUE)]
+    for fam, key, lab, dx, col in BARS:
+        g = data[fam].get(key, (None, None))[1]
+        if g is None:
+            continue
+        m, e = g.mean(axis=0), g.std(axis=0, ddof=1)
+        ax[2].bar(np.arange(3) + dx, m, yerr=e, width=0.19, capsize=2.5,
+                  label=lab, color=col, alpha=0.9)
+    ax[2].axhline(0, color="k", lw=1)
+    ax[2].plot(np.arange(3) - 0.10, [0.642, 0.586, 0.869], "X", color="crimson",
+               ms=11, zorder=4, label="published ABC, 1 seed")
+    ax[2].set_xticks(range(3)); ax[2].set_xticklabels(["low-σ", "mid-σ", "high-σ"])
+    ax[2].set_ylim(-1.30, 1.05)
+    ax[2].set_ylabel("Δ log-density  (conditioned − no-cond)")
+    ax[2].set_title("the adaptivity claim does not survive\nerror bars = seed sd",
+                    fontsize=9.5)
+    ax[2].legend(fontsize=7, loc="lower center", ncol=3)
+
+    fig.suptitle("Noise conditioning on synthetic data, device-matched and across "
+                 "three training seeds (P6-D12)", fontsize=12)
     fig.tight_layout(); fig.savefig(FIG / "fig5_abc_ablation.png", dpi=160); plt.close(fig)
     print("  fig5_abc_ablation.png")
 

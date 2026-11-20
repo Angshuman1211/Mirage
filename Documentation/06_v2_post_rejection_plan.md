@@ -93,10 +93,20 @@ today once the circular claim is cut.
 than novelty. Thesis, **revised 2026-11-07 by P6-D2**: SBI robustness techniques that show no
 measurable benefit on synthetic misspecification benchmarks actively degrade real-data
 inference. The original wording had conditioning *winning* on synthetic ABC at 0.587 to 0.687,
-and that win was an artifact of a baseline that never trained. Retrained, synthetic coverage is
-flat at nominal across all arms while the real-data degradation holds at 8.4x the training-seed
-spread. Evidence in hand is that plus the null CycleGAN result. Still the strongest genuinely
-ML-shaped claim left standing, and now it does not depend on a synthetic result that dissolved.
+and that win was an artifact of a baseline that never trained. Retrained device-matched across
+three arms and three seeds (P6-D27), synthetic coverage is flat at nominal everywhere, 0.694 to
+0.698 on ABC and 0.689 to 0.700 on radius, with every conditioning difference **smaller than the
+measured posterior-draw noise of 0.0118** and the ABC difference changing sign between two
+evaluations of the identical checkpoints. The second published synthetic claim, that the gain
+grows with noise level, also fails: it collapses to about zero on ABC and is **negative at every
+noise tercile on the radius family**, which is the family used on real data. Meanwhile the
+real-data degradation holds at 8.4x the training-seed spread, and A3 (P6-D26) rules out the
+inference-time covariance estimate as its cause, bounding that channel at 2.2 percent of the gap.
+The device control is unusually clean and worth stating in the paper: the two published
+*conditioned* arms were CUDA-trained and reproduce to within 0.011, while the two published
+*no-cond* arms were MPS-trained and are wrong by +0.110 and −0.128 **in opposite directions**.
+Evidence in hand is that plus the null CycleGAN result. Still the strongest genuinely ML-shaped
+claim left standing, and now it does not depend on a synthetic result that dissolved.
 
 **C. Build a real amortized calibration.** Venue: ICML, NeurIPS. Learn one transport on a
 calibration set and apply it to new targets with no per-target nested sampling, which is what

@@ -95,13 +95,20 @@ a physical, literature-consistent, 7/7-covered posterior.**
 - **`fig3_spectrum_fit.png`** — real WASP-39b transit spectrum + MIRAGE best-fit model (χ²/dof≈0.03).
 - **`fig4_corner.png`** — full 7-param corner, calibrated MIRAGE (blue) vs NS anchor (grey);
   contours track across all parameters.
-- **`fig5_abc_ablation.png`** — **RETRACTED by P6-D1 / P6-D2.** Both claims this panel made came
-  from a no-cond baseline that never trained (MPS, best val 1.923 against 1.390 on CUDA at the
-  same config and seed). (a) "no-cond under-covers (0.587<0.68)" is false; retrained it sits at
-  0.692 ± 0.013, with +σ+cov at 0.698 ± 0.011, a gap 0.5x the training-seed spread. (b) the
-  log-density gap does not grow with σ; at +0.08 / −0.00 / +0.07 across σ tertiles it is flat and
-  an order of magnitude smaller than the +0.64→+0.87 reported here. The figure must be regenerated
-  from the `configs/h9_*` runs before it is used again.
+- **`fig5_abc_ablation.png`** — **RETRACTED by P6-D1 / P6-D2, REGENERATED 2026-11-18 (P6-D27).**
+  Both claims the published panel made came from a no-cond baseline that never trained (MPS, best
+  val 1.923 against 1.390 on CUDA at the same config and seed). The figure now reads the eighteen
+  device-matched `configs/h9_*` arms, three training seeds per family per arm, and it no longer
+  reads the single-seed device-mixed `abc_ablation.npz`.
+  (a) "no-cond under-covers (0.587<0.68)" is false. Device-matched, ABC runs no-cond 0.697,
+  +σ 0.698, +σ+cov 0.694; radius runs 0.689, 0.693, 0.700. Every arm is at nominal, and every
+  conditioning effect is smaller than the measured posterior-draw noise of 0.0118.
+  (b) the log-density gap does not grow with σ. Against the published +0.64 → +0.87, ABC +σ+cov
+  gives +0.01 / −0.02 / +0.05 and the radius family is **negative at every tercile**.
+  The sharpest result is the control: the two published **conditioned** arms were CUDA-trained and
+  reproduce to within 0.011, while the two published **no-cond** arms were MPS-trained and are
+  wrong by +0.110 and −0.128 in opposite directions, so the artifact is isolated to exactly the
+  arms that ran on the wrong device.
   `scripts/run_noisecond_ablation.py --train-seed 42 --save` → `data/real_ess/h9_abc_s42.npz`.
 
 ---

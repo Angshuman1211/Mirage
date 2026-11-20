@@ -1,0 +1,2 @@
+early stopping fired, best epoch 205, stopped at 255 (50 = stage_patience)
+kernel mirage-sigrange-cov2, train_local.py printed 'All training stages complete!'

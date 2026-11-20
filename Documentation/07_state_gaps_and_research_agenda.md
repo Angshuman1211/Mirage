@@ -158,16 +158,26 @@ than the prior's own central 68%, so containment is informative rather than vacu
 The published no-conditioning arms were trained on MPS and never converged. Retrained on CUDA at
 identical configs and seeds, 3 seeds per arm:
 
+Updated 2026-11-18 (P6-D27) to the three-arm evaluation. Coverage is the three-seed mean with the
+seed sd; the sigma row is no longer withheld because the CUDA retrains landed (P6-D12).
+
 | arm | ABC (6-param) | radius (7-param) | real JS to NS |
 |---|---|---|---|
-| no conditioning | 0.692 ± 0.013 | 0.692 ± 0.016 | **0.344 ± 0.003** |
-| + sigma + covariance | 0.698 ± 0.011 | 0.693 ± 0.014 | 0.426 ± 0.014 |
+| no conditioning | 0.697 ± 0.003 | 0.689 ± 0.010 | **0.344 ± 0.003** |
+| + sigma | 0.698 ± 0.023 | 0.693 ± 0.006 | — |
+| + sigma + covariance | 0.694 ± 0.011 | 0.700 ± 0.010 | 0.426 ± 0.014 |
 
-Superseded, do not quote: 0.587, 0.817, 0.687, 0.700, 0.352, 0.428. The +sigma row (0.687 / 0.903
-/ 0.371) is withheld, not corrected, because `noisecond_rad_sigma` is a third failed MPS run and
-has not been retrained. It sits at 1.3729 against a radius CUDA band of 1.124 to 1.159, so the
-degradation is about 0.24, worse than `rad_nocond`'s 0.115. Job B's `h9_rad_sigma_s42` settles it
-(P6-D4).
+Superseded, do not quote: 0.587, 0.817, 0.687, 0.700, 0.352, 0.428, 0.903, 0.371. Also do not
+quote the earlier two-arm figures 0.692 ± 0.013 and 0.698 ± 0.011 on ABC or 0.692 ± 0.016 and
+0.693 ± 0.014 on radius; they were correct for what they measured but are superseded by the
+three-arm pass.
+
+**Read the coverage column against a measured noise floor, not against the seed sd alone.**
+Re-drawing every posterior from the same weights on the same planets moves coverage by rms 0.0118
+and up to 0.0233 (P6-D27). That is the same size as the seed spread, so most of these ± values are
+posterior-draw noise rather than training-seed variation, and no conditioning difference in this
+table is resolvable. The ABC effect even **changes sign** between two evaluations of the identical
+checkpoints, +0.006 in the earlier two-arm pass and −0.002 here.
 
 Every synthetic arm is now at nominal. The conditioning gap is 0.5x the seed spread on ABC and
 0.1x on radius, so "calibrates from either direction" is withdrawn; it required a baseline
@@ -325,8 +335,18 @@ makes the disagreement with the NS anchor (G3b) sharper rather than softer. A5 s
 **G3e. The scale-mismatch penalty is arm-independent** (P6-D17). Tier 0 to tier 1, a 24x drop
 below the training perturbation range, costs +0.084 on cov, +0.083 on sigma and +0.092 on nocond.
 One penalty of about +0.085 across three conditioning schemes, so P6-D7's scale mismatch is a
-property of the setup rather than of any embedding. This removes a confound and makes the
-sigma-range retrain the right fix for all three arms instead of a patch for one.
+property of the setup rather than of any embedding. This removed a confound and pointed at the
+sigma-range retrain as the fix for all three arms instead of a patch for one.
+
+**That prediction was tested and is FALSE** (P6-D28, 2026-11-19). Retraining all six radius arms
+with sigma drawn log-uniformly from 1e-3, which puts the real 2.16e-3 inside the trained range,
+did not close the real-side gap, it widened it from +0.083 to **+0.148**. The cov arm degraded
+from 0.427 to 0.490 while no-cond held at 0.342. The mechanism is that the conditioned posterior
+sharpened on every parameter, mean per-parameter 68% width ratio 0.64 against no-cond's 1.08,
+while its T median moved from 1617 K to 1858 K against the anchor's 608 K. Making the conditioning
+signal more faithful to the real data removed the arm's remaining width without removing its bias,
+so it became confidently wrong and the 1-D JS saturated. Scale mismatch is real and arm-independent,
+but it is **not** what drives the conditioning paradox.
 
 **G4b. rp_rj is the worst-calibrated parameter in all 20 A1 cells**, WASP-39b at 3 arms x 3
 seeds x 2 tiers (18 of 18, P6-D17) and both extra targets, and the free radius is the headline
