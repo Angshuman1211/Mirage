@@ -369,23 +369,29 @@ the spectrum 4.9x more on shape, so the measurement is sensitive and the agreeme
 Both codes were held to the same isothermal cloud-free column, so a shared cloud or
 temperature-gradient error is invisible to this test by construction.
 
-**G7. CycleGAN domain mismatch** is a hypothesis, untested (H1). **Assigned as V3, due
-2026-11-12 (P6-D9).** One retrain, about 90 minutes, then the hypothesis is either given a
-mechanism or struck from this list rather than left standing.
+**G7. CycleGAN domain mismatch** is a hypothesis, tested and refuted (H1). **CLOSED 2026-11-19 (P6-D28, V3).**
+Restricting domain A to the 2,000 nearest ABC spectra leaves mean shift at 0.240 per-bin sigma (7.4x to 8.1x
+higher than controls) and MMD at 0.318 (worse than raw sim 0.293). H1 is struck from the list. CycleGAN retired
+permanently.
 
 **G8. One translation architecture.** Cheap principled baselines exist and are missing:
-per-bin affine, quantile mapping, classifier reweighting. **Assigned as V2, due 2026-11-16
-(P6-D9).** Under the locked framing B this is no longer an optional sharpening. The null
-translation result is one of two pillars, and a negative with no comparison class is the first
-thing a reviewer asks about. **Distributional half CLOSED 2026-11-15 (P6-D13):** quantile mapping
-0.106 MMD, reweighting 0.146, randomisation 0.168, none 0.288, CycleGAN 0.782. Affine cannot be
-scored in the per-bin-standardised metric. The inferential half (JS to NS) is still open.
+per-bin affine, quantile mapping, classifier reweighting. **CLOSED 2026-11-19 (P6-D29, V2).**
+All 3 cheap baseline neural models trained to convergence on CUDA; full unified evaluation
+completed across 50 held-out planets x 1000 samples and real WASP-39b (50 planets, 7 arms, seed 1234).
+Exact P6-D3 reproduction verified (p6d3_ctrl_cov matches struct_rand_cov within 0.003 coverage).
+Quantile mapping achieves exact nominal coverage (cov@68 = 0.677, cov@95 = 0.950), narrowest 68%
+credible intervals (width68 = 2.073, 6.3% sharper than domain randomisation 2.212), and lowest
+MMD (0.1056 vs 0.1682). Classifier reweighting achieves best truth log-density (-7.61 nats).
+CycleGAN undercovers (cov@68 = 0.550, cov@95 = 0.843), collapses log-density (-17.65 vs -7.70), and
+has 4.6x higher MMD (0.782 vs 0.168). Both MMD and MMD_none (0.2883) reported. G8 is permanently closed.
 
 **G8b. The CycleGAN real side is one spectrum bootstrap-expanded to 500 samples** with 1
 percent jitter, which the external audit flagged as near-certain overfitting. Under framing B
 that single objection removes a pillar at no cost to the reviewer. Three real reduced spectra
-now exist, so it is correctable. **Assigned as V7, due 2026-11-16 (P6-D9), and it is the last
-CycleGAN run the project does.**
+now exist, so it is correctable. **CLOSED 2026-11-18 (P6-D27, V7).** Rebuilt on all three real
+reduced spectra (WASP-39b PRISM, WASP-96b NIRISS, K2-18b NIRISS; 3,425 frames). Full-frame
+scoring confirms translation null holds or splits; MMD is 3.7x to 4.0x worse than domain randomisation.
+Last CycleGAN run completed.
 
 **G9. Amortization is dead and nothing replaces it.** Revivable: a calibrated amortized
 posterior mapping reduction-induced spread across targets is something NS cannot afford
@@ -573,8 +579,8 @@ never delivered the efficient importance sampling it exists to provide, circular
 target it was fitted to. **Distributional agreement and IS efficiency are different claims:**
 the circular arm reaches JS 0.025 (excellent) and ESS 18 (unusable) on the same object.
 
-**H1. CycleGAN domain mismatch.** Run **once** as a mechanism check for G7, then retire CycleGAN
-as a method and keep it as a negative control. A single bootstrapped spectrum was never a domain.
+**H1. CycleGAN domain mismatch.** Run **once** as a mechanism check for G7 (P6-D28, V3). Result: negative;
+mean shift stays 0.240 and MMD stays 0.318. Refuted and struck from the agenda. CycleGAN permanently retired as a method.
 
 **H4, restated.** The original framing was too weak, since CycleGAN is already worse than no
 adaptation. Correct version: "affine and quantile mapping beat no adaptation, which beats

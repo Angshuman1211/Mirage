@@ -52,6 +52,16 @@ def register() -> None:
     if _REGISTERED:
         return
 
+    import torch
+    # In PyTorch >=2.6, torch.load defaults to weights_only=True, breaking
+    # checkpoints that contain pickled DataFrame/dict metadata from fm4ar.
+    _orig_load = torch.load
+    def _safe_torch_load(*args, **kwargs):
+        if "weights_only" not in kwargs:
+            kwargs["weights_only"] = False
+        return _orig_load(*args, **kwargs)
+    torch.load = _safe_torch_load
+
     import fm4ar.datasets.data_transforms as _dt
     import fm4ar.datasets.theta_scalers as _ts
     import fm4ar.nn.embedding_nets as _emb

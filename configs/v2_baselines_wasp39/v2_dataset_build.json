@@ -1,0 +1,55 @@
+{
+  "source_hdf": "data\\abc\\abc_train.hdf",
+  "real_domain": "data\\real_domain\\real_domain_wasp39_abc.npz",
+  "real_fit_frames": 1620,
+  "real_total_frames": 3241,
+  "split_rule": "contiguous first half by integration_num",
+  "fm4ar_split": {
+    "n_train": 64000,
+    "n_valid": 8000,
+    "seed": 42
+  },
+  "arms": {
+    "quantile": {
+      "hdf": "data\\abc\\abc_v2_quantile_train.hdf",
+      "space": "per-bin standardised (matches P6-D13 MMD=0.1056)",
+      "mean_abs_delta": 0.4920393200364047,
+      "mean_shift": 0.0025302427744051436,
+      "flux_mean_range": [
+        -0.0018542868783697486,
+        0.010609263554215431
+      ],
+      "flux_std_range": [
+        0.7554753422737122,
+        0.9990900754928589
+      ]
+    },
+    "affine": {
+      "hdf": "data\\abc\\abc_v2_affine_train.hdf",
+      "space": "ABC-normalised depth space (standardised-space affine is identity = h9_abc_cov_s42)",
+      "mean_abs_delta": 2.248548704715705,
+      "mean_shift": 2.1634261668582937,
+      "flux_mean_range": [
+        1.9059122800827026,
+        2.3085482120513916
+      ],
+      "flux_std_range": [
+        0.007527025882154703,
+        0.45498576760292053
+      ],
+      "flux_std_median": 0.015035688877105713
+    },
+    "reweight": {
+      "hdf": "data\\abc\\abc_v2_reweight_train.hdf",
+      "space": "unmodified TauREx (flux, theta), train_idx resampled by classifier density ratio; val_idx untouched",
+      "classifier_auc_cv3": 0.9999998842628761,
+      "weight_ess": 10025.6636982748,
+      "weight_ess_pct": 15.665099528554375,
+      "max_weight_share_pct": 0.3817990389745502,
+      "n_unique_train_rows": 35501,
+      "train_val_planet_overlap": 0,
+      "flux_mean_after": 0.35328567028045654,
+      "flux_std_after": 1.7129573822021484
+    }
+  }
+}
