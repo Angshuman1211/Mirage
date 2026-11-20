@@ -311,7 +311,7 @@ fallback stating what happens to the paper if it does not arrive.
 
 #### V7. Rebuild the CycleGAN real side on all three real spectra. Due 2026-11-16. (NEW)
 
-> **Status 2026-11-18 (P6-D27): RUN AND CLOSED.** Trained 200 epochs on CUDA with
+> **Status 2026-11-18 (P6-D29): RUN AND CLOSED.** Trained 200 epochs on CUDA with
 > `data/real_domain/real_domain_all3_abcniriss.npz` (`configs/cyclegan_v7_pooled3/cyclegan_best.pt`).
 > Full-frame scoring yields a mixed verdict: WASP-39b PRISM split (MMD worse 0.952 vs 0.256, KL
 > better 4.31 vs 5.76), WASP-96b holds (MMD 1.009 vs 0.258, KL 5.99 vs 2.08), K2-18b holds (MMD
@@ -335,7 +335,7 @@ framing B drops to a single pillar. Say so before the writing starts, not during
 
 #### V2. The cheap baselines any learned translator must beat. Due 2026-11-16. (closes G8)
 
-> **Status 2026-11-19 (P6-D29): BOTH HALVES DONE AND CLOSED (CLOSES G8).** Unified evaluation completed
+> **Status 2026-11-19 (P6-D31): BOTH HALVES DONE AND CLOSED (CLOSES G8).** Unified evaluation completed
 > (`scripts/v2_inferential_eval.py --n-planets 50 --n-samples 1000 --n-real 1000 --include-p6d3-ctrl`,
 > persisted to `configs/v2_baselines_wasp39/v2_inferential.json`). All 3 cheap baselines trained to convergence on CUDA
 > and verified leak-free. Exact P6-D3 reproduction verified (CPU `p6d3_ctrl_cov` matches CUDA `struct_rand_cov`
@@ -430,7 +430,7 @@ decision log saying whether P6-D3 is evaluator-independent or not.
 > **no for NIRISS** (exoTEDRF only). Carter WASP-39b **no**: one uniform analysis of four visits,
 > with only limb-darkening and dilution variants per visit. The H7 test should use K2-18b G395H.
 >
-> **Spectral Result 2026-11-18 (P6-D30): DELIVERED.** Extracted 7 independent G395H reductions
+> **Spectral Result 2026-11-18 (P6-D32): DELIVERED.** Extracted 7 independent G395H reductions
 > from Zenodo (`scripts/v5_h7_pipeline_shift.py --spectral`, `configs/v5_k218_h7/spectral_shift.json`).
 > Pairwise offsets reach +36 to +46 ppm (0.75-0.91σ) and shape RMS reaches 57 to 84 ppm (1.06-1.66σ).
 > Pipeline-to-pipeline variation exceeds forward-model simulator discrepancy (TauREx vs petitRADTRANS,
@@ -451,7 +451,7 @@ exists.
 
 #### V3. H1 once, as a mechanism check, then stop. Due 2026-11-12. (closes G7)
 
-> **Status 2026-11-19 (P6-D28): RUN AND CLOSED.** `scripts/run_v3_h1.sh`: domain A restricted to
+> **Status 2026-11-19 (P6-D30): RUN AND CLOSED.** `scripts/run_v3_h1.sh`: domain A restricted to
 > the 2,000 ABC spectra nearest the real WASP-39b spectrum, retrained 200 epochs on CUDA
 > (`configs/cyclegan_v3_h1_k2000`). Mean shift is 0.240 per-bin sigma (vs 0.308 previously),
 > remaining 7.4x to 8.1x higher than unadapted sim (0.030) and domain randomisation (0.033).
@@ -523,7 +523,8 @@ Revised 2026-11-08.
    The evaluation pass is also **DONE 2026-11-14 (P6-D17)**: six A1 cells on the radius sigma
    arms populate the Phase-4 sigma row, and against injection labels the three arms fall in
    conditioning order on every calibration statistic, which P6-D12's in-distribution null
-   cannot see. **Z2 is fully closed.** Only regenerating fig5 from `configs/h9_*` remains.
+   cannot see. **Z2 is fully closed**, and fig5 was regenerated from `configs/h9_*` on
+   2026-11-18 (P6-D27), which was its last open dependency. Nothing on H9 remains.
 3. ~~**A1**~~ **14 of 15 cells DONE 2026-11-08 (P6-D8, P6-D11).** The s43 and s44 seed repeat
    and both extra targets are discharged, and the repeat corrected P6-D8's conditioning claim
    (G3b). **COMPLETE 2026-11-16**: the sole remainder, **G13**, landed as P6-D25.
@@ -542,9 +543,13 @@ Revised 2026-11-08.
 6. **V7**, **V2** by 2026-11-16. **V6**, **V1b** by 2026-11-23. **V5** verification by
    2026-11-16, result by 2026-11-30.
 7. ~~**A2**~~ DONE 2026-11-16 (P6-D22). ~~**A4**~~ DONE 2026-11-16 (P6-D23). ~~**A3**~~ DONE
-   2026-11-17 (P6-D26). **Every Track 1 experiment is now closed.** What remains is the
-   sigma-range retrain, which is optional and is the fix P6-D7 and P6-D8 jointly point at,
-   regenerating fig5, and the manuscript.
+   2026-11-17 (P6-D26). ~~**fig5**~~ **DONE 2026-11-18 (P6-D27)**, rebuilt on the eighteen
+   device-matched H9 arms; **A1 is complete**. ~~**sigma-range retrain**~~ **DONE
+   2026-11-19 (P6-D28)**, trained on a Kaggle T4 since this machine has no CUDA. It was the fix
+   P6-D7 and P6-D17 jointly pointed at and it **failed in the strong direction**: the gap widened
+   from +0.083 to +0.148 because the conditioned posterior sharpened by about a third while moving
+   further from the anchor. **Every Track 1 experiment is now closed.** What remains is the
+   manuscript.
 8. Writing starts after A5 and the required Track 2 set. Either one missing changes what the
    paper is allowed to claim.
 

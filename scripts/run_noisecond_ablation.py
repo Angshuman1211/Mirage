@@ -114,11 +114,15 @@ def h9_arms(family: str, train_seed: int) -> dict[str, Path]:
     trained on MPS and under-trained there (ABC best val 1.923 vs 1.390 on CUDA
     at the same seed and config). These re-runs differ from the originals only
     in backend, so the no-cond arm is a real baseline rather than a broken one.
-    `+sigma` has no H9 counterpart and is dropped.
+    `+sigma` was dropped here until P6-D12 retrained the six sigma arms on CUDA,
+    which made all eighteen H9 arms device-matched. It is included again now, so
+    the ablation is the same three-arm comparison the published figure made,
+    with every arm trained on the same backend.
     """
     tag = {"abc": "abc", "rad": "rad"}[family]
     return {
         "no-cond":    Path(f"configs/h9_{tag}_nocond_s{train_seed}"),
+        "+sigma":     Path(f"configs/h9_{tag}_sigma_s{train_seed}"),
         "+sigma+cov": Path(f"configs/h9_{tag}_cov_s{train_seed}"),
     }
 
@@ -156,9 +160,13 @@ def main(n_planets: int = 50, n_samples: int = 1000, test_seed: int = 1234,
 
     if not arms and clean is None:
         raise SystemExit("Nothing to evaluate — train an arm or pass --clean-ref.")
-    # Any arm's noise block works: all arms in a family share it. Fall back to the
-    # first arm when a custom --arm-dir set has no "+sigma+cov" key.
-    _src = fam_arms.get("+sigma+cov") or next(iter(fam_arms.values()))
+    # NOT any arm's block. The `+sigma` configs carry an INCOMPLETE generator,
+    # only sigma_min/sigma_max with no ou_length_*/se_length_*, so selecting one
+    # as the source silently injects a different noise process built from
+    # defaults. Prefer the two arms that carry the full block, and fall back to
+    # the first arm only when a custom --arm-dir set has neither.
+    _src = (fam_arms.get("+sigma+cov") or fam_arms.get("no-cond")
+            or next(iter(fam_arms.values())))
     inject = noise_transform(_src, test_seed) if arms else None
 
     order = (["clean-ref"] if clean else []) + list(arms)
