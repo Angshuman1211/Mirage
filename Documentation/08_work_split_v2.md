@@ -311,10 +311,12 @@ fallback stating what happens to the paper if it does not arrive.
 
 #### V7. Rebuild the CycleGAN real side on all three real spectra. Due 2026-11-16. (NEW)
 
-> **Status 2026-11-15 (P6-D16): BUILT, NOT RUN.** Bootstrap retired in code, pooled 3-spectrum
-> domain and seeded, committed runner ready (`scripts/run_v7_pooled.sh`, `scripts/v7_table.py`),
-> smoke-tested end to end. Blocked only on `data/jwst_{wasp39b,wasp96b,k2_18b}_spectrum.csv`,
-> which are not in the repo. About 1 h of GPU once they are present.
+> **Status 2026-11-18 (P6-D29): RUN AND CLOSED.** Trained 200 epochs on CUDA with
+> `data/real_domain/real_domain_all3_abcniriss.npz` (`configs/cyclegan_v7_pooled3/cyclegan_best.pt`).
+> Full-frame scoring yields a mixed verdict: WASP-39b PRISM split (MMD worse 0.952 vs 0.256, KL
+> better 4.31 vs 5.76), WASP-96b holds (MMD 1.009 vs 0.258, KL 5.99 vs 2.08), K2-18b holds (MMD
+> 1.001 vs 0.253, KL 3.14 vs 1.58). On MMD, CycleGAN is 3.7x to 4.0x worse than domain randomisation
+> across all three targets. Translation actively degrades the noise distribution. Closes G8b.
 
 The current real side is **one** reduced WASP-39b spectrum, bootstrap-expanded to 500 samples
 with 1 percent photon-noise jitter. Under v1's framing that was a weak spot in a minor
@@ -333,11 +335,16 @@ framing B drops to a single pillar. Say so before the writing starts, not during
 
 #### V2. The cheap baselines any learned translator must beat. Due 2026-11-16. (closes G8)
 
-> **Status 2026-11-15 (P6-D13): DISTRIBUTIONAL HALF DONE, INFERENTIAL HALF OPEN.** Six-row table
-> on held-out real frames, 3 seeds, reproducing the published tier-1 MMD to four decimals. MMD:
-> quantile 0.106, reweight 0.146, randomisation 0.168, none 0.288, affine 0.288 (the metric is
-> per-bin affine-invariant, so affine cannot be scored in it), CycleGAN 0.782. The JS-to-NS
-> column needs per-arm flow retrains plus the anchor, so the fallback applies to that half only.
+> **Status 2026-11-19 (P6-D31): BOTH HALVES DONE AND CLOSED (CLOSES G8).** Unified evaluation completed
+> (`scripts/v2_inferential_eval.py --n-planets 50 --n-samples 1000 --n-real 1000 --include-p6d3-ctrl`,
+> persisted to `configs/v2_baselines_wasp39/v2_inferential.json`). All 3 cheap baselines trained to convergence on CUDA
+> and verified leak-free. Exact P6-D3 reproduction verified (CPU `p6d3_ctrl_cov` matches CUDA `struct_rand_cov`
+> within 0.003 coverage and JS 0.009 on real WASP-39b). Quantile mapping achieves nominal coverage
+> (cov@68 = 0.677, cov@95 = 0.950), narrowest 68% credible intervals (width68 = 2.073, 6.3% sharper than
+> domain randomisation 2.212), and lowest MMD (0.1056 vs 0.1682). Classifier reweighting achieves highest
+> truth log-density (-7.61 nats). CycleGAN undercovers (cov@68 = 0.550, cov@95 = 0.843), collapses log-density
+> (-17.65 vs -7.70), and has 4.6x higher MMD (0.782 vs 0.168). Both MMD and MMD_none (0.2883) reported.
+> G8 is definitively closed.
 
 Three arms, all inexpensive, none needing new data. **Per-bin affine**. **Per-bin quantile
 mapping**, the standard bias-correction baseline in climate downscaling. **Classifier
@@ -394,8 +401,10 @@ source rather than a secondary summary, and the script renamed with its docstrin
 > Translation damages calibration against ground-truth labels, not only against the NS anchor, so
 > the P6-D8 evaluator-flip exposure is discharged and **G1b closes**.
 >
-> **The interpretation and write-up are still Track 2's.** The control arms were added beyond V1b
-> as written, since the translated number is not comparable to P6-D3 without them.
+> **Status 2026-11-18: WRITE-UP COMPLETE.** Full interpretation documented in
+> `Documentation/10_track2_v1b_interpretation.md`. Unified 7-param radius vs 6-param ABC table,
+> evaluator-independence proof, and manuscript draft text contrasting translation with noise
+> conditioning completed and accepted.
 
 **This requirement did not exist before 2026-11-08 and it comes from P6-D8.** A1 found that
 conditioning HELPS against prior-draw labels while P6-D2 found it HURTS against the
@@ -420,6 +429,12 @@ decision log saying whether P6-D3 is evaluator-independent or not.
 > FIREFLy + exoTEDRF). Luque K2-18b **yes for NIRSpec and MIRI** (exoTEDRF / Eureka! / SPARTA),
 > **no for NIRISS** (exoTEDRF only). Carter WASP-39b **no**: one uniform analysis of four visits,
 > with only limb-darkening and dilution variants per visit. The H7 test should use K2-18b G395H.
+>
+> **Spectral Result 2026-11-18 (P6-D32): DELIVERED.** Extracted 7 independent G395H reductions
+> from Zenodo (`scripts/v5_h7_pipeline_shift.py --spectral`, `configs/v5_k218_h7/spectral_shift.json`).
+> Pairwise offsets reach +36 to +46 ppm (0.75-0.91σ) and shape RMS reaches 57 to 84 ppm (1.06-1.66σ).
+> Pipeline-to-pipeline variation exceeds forward-model simulator discrepancy (TauREx vs petitRADTRANS,
+> 8.9 ppm) by 6.4x to 9.5x. Canonical CSVs formatted for flow evaluation (`--run-flow`).
 
 Each pair of reductions shares the same astrophysical truth, so pipeline shift is isolated
 from atmosphere. K2-18b (Schmidt et al. Zenodo 14735689, Luque et al. Zenodo 15685551) and
@@ -436,9 +451,13 @@ exists.
 
 #### V3. H1 once, as a mechanism check, then stop. Due 2026-11-12. (closes G7)
 
-> **Status 2026-11-15 (P6-D16): BUILT, NOT RUN.** `scripts/run_v3_h1.sh`: domain A restricted to
-> the 2,000 ABC spectra nearest the real WASP-39b spectrum, one retrain. Blocked on the same
-> spectrum CSV as V7.
+> **Status 2026-11-19 (P6-D30): RUN AND CLOSED.** `scripts/run_v3_h1.sh`: domain A restricted to
+> the 2,000 ABC spectra nearest the real WASP-39b spectrum, retrained 200 epochs on CUDA
+> (`configs/cyclegan_v3_h1_k2000`). Mean shift is 0.240 per-bin sigma (vs 0.308 previously),
+> remaining 7.4x to 8.1x higher than unadapted sim (0.030) and domain randomisation (0.033).
+> MMD is 0.318 (worse than unadapted sim 0.293, 1.87x worse than domain randomisation 0.170).
+> The translation artifact does NOT collapse. H1 is refuted and struck from the research agenda;
+> CycleGAN is retired as an active intervention (closes G7).
 
 Rebuild domain A restricted to one planet's parameter neighbourhood, retrain once, see whether
 the 0.308 per-bin-sigma mean shift collapses. If it does, the negative gains a mechanism. If

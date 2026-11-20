@@ -36,6 +36,9 @@ build/
 .ipynb_checkpoints/
 *.ipynb
 
+# Cache and temporary pickles
+*.pkl
+
 # Environment
 .env
 *.env
