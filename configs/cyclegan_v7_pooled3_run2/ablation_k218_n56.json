@@ -1,0 +1,29 @@
+{
+  "n_samples": 500,
+  "conditions": {
+    "sim_baseline": {
+      "mmd_to_real": 0.37231241981498897,
+      "kl_to_real": 2.5906657661551766,
+      "mean_shift": 1.1162644142359568e-08,
+      "corr_similarity": 0.06531213853391082
+    },
+    "domain_random": {
+      "mmd_to_real": 0.2657004331704229,
+      "kl_to_real": 2.241759301380186,
+      "mean_shift": 0.006120142061263323,
+      "corr_similarity": 0.0665551807439071
+    },
+    "cyclegan_trans": {
+      "mmd_to_real": 0.9612848176620901,
+      "kl_to_real": 4.988914735388031,
+      "mean_shift": 0.45835086703300476,
+      "corr_similarity": 0.0039952742842724875,
+      "cycle_consistency_error": 0.65472811460495
+    }
+  },
+  "deltas": {
+    "mmd_dr_minus_cg": -0.6955843844916672,
+    "kl_dr_minus_cg": -2.7471554340078446
+  },
+  "conclusion": "RANDOMISATION_PREFERRED"
+}

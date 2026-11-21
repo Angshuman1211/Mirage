@@ -378,16 +378,20 @@ data-handling pipeline, the translation study, and related work.
 | V2 | Cheap baselines any learned translator must beat | distributional half **done** (P6-D13), inferential half open |
 | V5 | Tier-2 verification, multiple reductions of one visit | **done** (P6-D14). K2-18b G395H is the usable test, WASP-39b is not |
 | V6 | Related work, and relabel the old ablation script | **done** |
-| V7 | Rebuild the CycleGAN real side on all three spectra | built and smoke-tested, **not run** (P6-D16) |
-| V3 | H1 as a mechanism check | built and smoke-tested, **not run** (P6-D16) |
+| V7 | Rebuild the CycleGAN real side on all three spectra | **done** (P6-D29). The null **holds**: the pooled translator is 3.25x to 3.72x worse than domain randomisation in all six cells. It also found the MMD basis was fitted on the arm under test, which moves the three published tier-2 translators from 0.57x-1.08x of randomisation to 1.23x-1.60x |
+| V3 | H1 as a mechanism check | built and smoke-tested, **not run**, no longer blocked (P6-D29). Optional |
 | V1b | Score the translated arm on the A1 injection ladder | build and first result **done** (P6-D24), interpretation open |
 
 **What is left.** On Track 1, every experiment is closed and fig5 was rebuilt on the eighteen
 device-matched H9 arms on 2026-11-18 (P6-D27), which completed A1. The optional
 σ-range retrain is also **done** (P6-D28, trained on a Kaggle T4 on 2026-11-19): it did not fix the
 conditioning paradox, it widened it, the cov arm's real-data JS rising from 0.427 to 0.490 while
-no-cond held at 0.342. What remains is the v2 manuscript. On Track 2, running V7 and V3 now that the spectra they need are in the repository,
-the inferential half of V2, and the V1b write-up. arXiv v2 goes last, by decision (P6-D10).
+no-cond held at 0.342. What remains is the v2 manuscript. On Track 2, **V7 is done** (P6-D29, Kaggle T4, 2026-11-20)
+and the translation null holds on a real side rebuilt from all three spectra, so framing B keeps
+both pillars. Still open there: the inferential half of V2, whose own MMD basis carries the same
+defect V7 found (`v2_cheap_baselines.py:265-267`, two of the six arms sit in the basis they are
+scored in), the V1b write-up, and V3 as an optional mechanism check. arXiv v2 goes last, by
+decision (P6-D10).
 
 ---
 
