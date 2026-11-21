@@ -318,6 +318,17 @@ fallback stating what happens to the paper if it does not arrive.
 > 1.001 vs 0.253, KL 3.14 vs 1.58). On MMD, CycleGAN is 3.7x to 4.0x worse than domain randomisation
 > across all three targets. Translation actively degrades the noise distribution. Closes G8b.
 
+> **Amended 2026-11-20 (P6-D33), and the verdict above stands.** The MMD those numbers are
+> expressed in was fitted on all four arms including the translated output, so it moved with the
+> checkpoint being scored. Re-scoring this same checkpoint on a basis fitted on sim and real only
+> gives **3.71x to 3.92x**, so "3.7x to 4.0x" needs no retraction. Two things do change. **The
+> published tier-2 translators move from 0.57x-1.08x of domain randomisation to 1.23x-1.60x, so
+> they never beat it anywhere and two of the three change sign.** And an independent second run of
+> this experiment, same config and seed on a Kaggle T4, replicates at 3.25x to 3.72x
+> (`configs/cyclegan_v7_pooled3_run2/`). Also note the pooled domain is 3,393 frames on 26 shared
+> bins, not the 3,425 and 52/90/156 the P6-D29 entry states, and that entry's three N56 rows
+> disagree with its own committed JSONs. See P6-D33.
+
 The current real side is **one** reduced WASP-39b spectrum, bootstrap-expanded to 500 samples
 with 1 percent photon-noise jitter. Under v1's framing that was a weak spot in a minor
 section. Under framing B it is fatal, because the single sentence "your translator failed
@@ -459,6 +470,11 @@ exists.
 > The translation artifact does NOT collapse. H1 is refuted and struck from the research agenda;
 > CycleGAN is retired as an active intervention (closes G7).
 
+> **One qualification (P6-D33).** The mean-shift result above is computed in bin space and is
+> unaffected by anything in P6-D33. The MMD figures in that line, 0.318 against 0.293 and 0.170,
+> come from the contaminated basis and should be regenerated before being quoted. H1 is refuted on
+> the mean shift either way, so the conclusion holds.
+
 Rebuild domain A restricted to one planet's parameter neighbourhood, retrain once, see whether
 the 0.308 per-bin-sigma mean shift collapses. If it does, the negative gains a mechanism. If
 not, remove the hypothesis from the decision log rather than leaving it standing. About 90
@@ -540,8 +556,9 @@ Revised 2026-11-08.
    the gate**: it rules out "the anchor is under-converged noise" but not "the forward model is
    misspecified", and only H8 tests the latter. A sampler can converge tightly onto a wrong
    model. The gate is H8 alone now.
-6. **V7**, **V2** by 2026-11-16. **V6**, **V1b** by 2026-11-23. **V5** verification by
-   2026-11-16, result by 2026-11-30.
+6. ~~**V7**~~ **DONE 2026-11-20 (P6-D29), the null holds and three published numbers are
+   corrected.** **V2**'s inferential half, **V1b**'s interpretation and **V5**'s result remain.
+   ~~**V6**~~ done 2026-11-15. **V3** is unblocked and optional.
 7. ~~**A2**~~ DONE 2026-11-16 (P6-D22). ~~**A4**~~ DONE 2026-11-16 (P6-D23). ~~**A3**~~ DONE
    2026-11-17 (P6-D26). ~~**fig5**~~ **DONE 2026-11-18 (P6-D27)**, rebuilt on the eighteen
    device-matched H9 arms; **A1 is complete**. ~~**sigma-range retrain**~~ **DONE

@@ -375,19 +375,30 @@ data-handling pipeline, the translation study, and related work.
 
 | item | what | status |
 |---|---|---|
-| V2 | Cheap baselines any learned translator must beat | distributional half **done** (P6-D13), inferential half open |
-| V5 | Tier-2 verification, multiple reductions of one visit | **done** (P6-D14). K2-18b G395H is the usable test, WASP-39b is not |
+| V2 | Cheap baselines any learned translator must beat | **done** (P6-D13, P6-D31). Quantile mapping reaches nominal coverage with 6% sharper posteriors while the CycleGAN undercovers and collapses log-density. Closes G8. The MMD column is inherited from P6-D13 and carries the basis defect below, so it needs regenerating; the coverage headline does not |
+| V5 | Tier-2 verification, multiple reductions of one visit | **done** (P6-D14, P6-D32). Reduction choice induces 36 to 46 ppm offsets and 57 to 84 ppm shape RMS on K2-18b, 1.06 to 1.66σ, which is **6.4x to 9.5x larger than the TauREx-to-petitRADTRANS forward-model difference** (8.9 ppm shape RMS, P6-D19) |
 | V6 | Related work, and relabel the old ablation script | **done** |
-| V7 | Rebuild the CycleGAN real side on all three spectra | built and smoke-tested, **not run** (P6-D16) |
-| V3 | H1 as a mechanism check | built and smoke-tested, **not run** (P6-D16) |
-| V1b | Score the translated arm on the A1 injection ladder | build and first result **done** (P6-D24), interpretation open |
+| V7 | Rebuild the CycleGAN real side on all three spectra | **done** (P6-D29). The null **holds**: the pooled translator is 3.71x to 3.92x worse than domain randomisation on the clean basis. Replicated by an independent second run at 3.25x to 3.72x (P6-D33, `configs/cyclegan_v7_pooled3_run2/`). Closes G8b |
+| V3 | H1 as a mechanism check | **done** (P6-D30). Restricting domain A does **not** collapse the mean shift, 0.240 against 0.308, still 7x to 8x above unadapted sim. H1 refuted and struck. Closes G7 |
+| V1b | Score the translated arm on the A1 injection ladder | **done** (P6-D24 result, interpretation in `Documentation/10_track2_v1b_interpretation.md`). Closes G1b |
 
-**What is left.** On Track 1, every experiment is closed and fig5 was rebuilt on the eighteen
-device-matched H9 arms on 2026-11-18 (P6-D27), which completed A1. The optional
-σ-range retrain is also **done** (P6-D28, trained on a Kaggle T4 on 2026-11-19): it did not fix the
-conditioning paradox, it widened it, the cov arm's real-data JS rising from 0.427 to 0.490 while
-no-cond held at 0.342. What remains is the v2 manuscript. On Track 2, running V7 and V3 now that the spectra they need are in the repository,
-the inferential half of V2, and the V1b write-up. arXiv v2 goes last, by decision (P6-D10).
+**What is left.** **Every experiment on both tracks is now closed.** On Track 1, fig5 was rebuilt
+on the eighteen device-matched H9 arms on 2026-11-18 (P6-D27), completing A1, and the optional
+σ-range retrain is **done** (P6-D28, Kaggle T4, 2026-11-19): it did not fix the conditioning
+paradox, it widened it, the cov arm's real-data JS rising from 0.427 to 0.490 while no-cond held at
+0.342. On Track 2, Vedanth closed the whole critical path on 2026-11-19/20, V7, V2, V3, V5 and V1b
+(P6-D29 through P6-D32), so **framing B has both of its pillars**.
+
+**Two corrections are owed before the manuscript quotes these numbers**, both in P6-D33. The MMD
+basis was fitted on the arm under test, which leaves V7's verdict standing at 3.71x to 3.92x but
+**reverses the published tier-2 comparison**, where the three per-target translators move from
+0.57x-1.08x of domain randomisation to 1.23x-1.60x and two change sign. The same defect sits in
+`v2_cheap_baselines.py:265-267`, so P6-D31's MMD column needs regenerating while its coverage
+headline is untouched. Separately, P6-D29's three N56 table rows disagree with its own committed
+JSONs, and it describes the pooled domain as 3,425 frames on 52/90/156 bins where it is 3,393
+frames on 26 shared bins.
+
+**So the only remaining work is the v2 manuscript.** arXiv v2 goes last, by decision (P6-D10).
 
 ---
 
