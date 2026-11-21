@@ -70,7 +70,12 @@ def main():
     stale = False
     for t in LABEL:
         for n in ("full", "n56"):
-            c = load(RUN / f"ablation_{t}_{n}.json")
+            # Prefer the fixed-basis rescoring of the same checkpoint. The
+            # originals stay as the record of what was committed, but mixing a
+            # legacy-basis pooled number with a fixed-basis published one in one
+            # row would be worse than either basis used consistently.
+            c = (load(RUN / f"ablation_fixedbasis_{t}_{n}.json")
+                 or load(RUN / f"ablation_{t}_{n}.json"))
             if c is None:
                 print(f"  {LABEL[t]:<17}{n:<7}  [missing] run scripts/run_v7_pooled.sh")
                 continue
