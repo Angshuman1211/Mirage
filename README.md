@@ -401,7 +401,30 @@ frames defining the real domain, 56 against 3,241, so the sign of the contaminat
 predictable from the setup. P6-D29's three N56 rows and its description of the pooled domain have
 also been corrected against its own committed JSONs. **No verdict or conclusion changed.**
 
-**So the only remaining work is the v2 manuscript.** arXiv v2 goes last, by decision (P6-D10).
+**Two papers remain, and between them one run.**
+
+**The v2 manuscript**, framing B at TMLR, blueprinted in
+[13_v2_manuscript_blueprint.md](Documentation/13_v2_manuscript_blueprint.md). One decision is
+owed inside it: V2's acceptance test requires posterior JS to the nested-sampling anchor as
+well as MMD, and that column still reads pending. It is **not** blocked on the uncommitted
+arm checkpoints (P6-D35). The seven saved flow-draw files and the 314 KB nested-sampling
+anchor are both gitignored under `data/*` and sit on different machines, so the fix is one
+file exchange followed by `python scripts/v2_inferential_eval.py --score-ns-only`.
+
+**A second, astronomy-facing paper** from V5 / H7 plus A5 plus A4, authorised 2026-11-22
+(P6-D34) after the reduction-systematics literature was audited in
+[11_prior_work_reduction_audit.md](Documentation/11_prior_work_reduction_audit.md). None of
+Schleich 2025, Roy-Perez 2026 or Schmidt 2025 benchmarks a reduction shift against a
+radiative-transfer-code difference, publishes a between-reduction ppm figure, or states what
+error floor the data supports. Target RASTI, blueprint in
+[12_astronomy_paper_blueprint.md](Documentation/12_astronomy_paper_blueprint.md).
+
+**The one run left.** A5 / H8 on K2-18b. The published "6.4x to 9.5x" ratio divides a K2-18b
+reduction shift by a WASP-96b code difference, at 51.8 ppm against 192.6 ppm error bars. In
+error-bar units the gap is larger rather than smaller, so the conclusion survives, but the
+ratio is not quotable until the yardstick sits on the same target.
+
+arXiv v2 goes last, by decision (P6-D10).
 
 ---
 
