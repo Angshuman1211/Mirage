@@ -325,9 +325,9 @@ fallback stating what happens to the paper if it does not arrive.
 > published tier-2 translators move from 0.57x-1.08x of domain randomisation to 1.23x-1.60x, so
 > they never beat it anywhere and two of the three change sign.** And an independent second run of
 > this experiment, same config and seed on a Kaggle T4, replicates at 3.25x to 3.72x
-> (`configs/cyclegan_v7_pooled3_run2/`). Also note the pooled domain is 3,393 frames on 26 shared
-> bins, not the 3,425 and 52/90/156 the P6-D29 entry states, and that entry's three N56 rows
-> disagree with its own committed JSONs. See P6-D33.
+> (`configs/cyclegan_v7_pooled3_run2/`). The pooled domain is 3,393 frames on 26 shared bins, not
+> the 3,425 and 52/90/156 the P6-D29 entry stated, and that entry's three N56 rows disagreed with
+> its own committed JSONs. **Both were corrected in P6-D29 on 2026-11-21.** See P6-D33.
 
 The current real side is **one** reduced WASP-39b spectrum, bootstrap-expanded to 500 samples
 with 1 percent photon-noise jitter. Under v1's framing that was a weak spot in a minor
@@ -352,10 +352,16 @@ framing B drops to a single pillar. Say so before the writing starts, not during
 > and verified leak-free. Exact P6-D3 reproduction verified (CPU `p6d3_ctrl_cov` matches CUDA `struct_rand_cov`
 > within 0.003 coverage and JS 0.009 on real WASP-39b). Quantile mapping achieves nominal coverage
 > (cov@68 = 0.677, cov@95 = 0.950), narrowest 68% credible intervals (width68 = 2.073, 6.3% sharper than
-> domain randomisation 2.212), and lowest MMD (0.1056 vs 0.1682). Classifier reweighting achieves highest
+> domain randomisation 2.212), and lowest MMD (0.1057 vs 0.1707). Classifier reweighting achieves highest
 > truth log-density (-7.61 nats). CycleGAN undercovers (cov@68 = 0.550, cov@95 = 0.843), collapses log-density
-> (-17.65 vs -7.70), and has 4.6x higher MMD (0.782 vs 0.168). Both MMD and MMD_none (0.2883) reported.
+> (-17.65 vs -7.70), and has 4.6x higher MMD (0.782 vs 0.171). Both MMD and MMD_none (0.2882) reported.
 > G8 is definitively closed.
+>
+> **Amended 2026-11-21 (P6-D33).** The MMD column was regenerated on a basis fitted on sim and real
+> only, into `configs/v2_baselines_wasp39/v2_baselines_fixedbasis_seed{0,1,2}.json`. The fix is
+> immaterial here: only structured randomisation moves by more than 0.0001, which widens quantile
+> mapping's margin from 37% to 38%. The coverage, sharpness and log-density headline was never
+> computed in that basis and is untouched. **The verdict above stands unchanged.**
 
 Three arms, all inexpensive, none needing new data. **Per-bin affine**. **Per-bin quantile
 mapping**, the standard bias-correction baseline in climate downscaling. **Classifier

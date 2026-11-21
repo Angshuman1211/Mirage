@@ -401,17 +401,19 @@ completed across 50 held-out planets x 1000 samples and real WASP-39b (50 planet
 Exact P6-D3 reproduction verified (p6d3_ctrl_cov matches struct_rand_cov within 0.003 coverage).
 Quantile mapping achieves exact nominal coverage (cov@68 = 0.677, cov@95 = 0.950), narrowest 68%
 credible intervals (width68 = 2.073, 6.3% sharper than domain randomisation 2.212), and lowest
-MMD (0.1056 vs 0.1682). Classifier reweighting achieves best truth log-density (-7.61 nats).
+MMD (0.1057 vs 0.1707). Classifier reweighting achieves best truth log-density (-7.61 nats).
 CycleGAN undercovers (cov@68 = 0.550, cov@95 = 0.843), collapses log-density (-17.65 vs -7.70), and
-has 4.6x higher MMD (0.782 vs 0.168). Both MMD and MMD_none (0.2883) reported. G8 is permanently closed.
+has 4.6x higher MMD (0.782 vs 0.171). Both MMD and MMD_none (0.2882) reported. G8 is permanently closed.
+MMD values regenerated 2026-11-21 on the corrected metric basis (P6-D33); the basis fix moves only
+structured randomisation, by 0.0025, and changes no conclusion.
 
 **G8b. The CycleGAN real side is one spectrum bootstrap-expanded to 500 samples** with 1
 percent jitter, which the external audit flagged as near-certain overfitting. Under framing B
 that single objection removes a pillar at no cost to the reviewer. Three real reduced spectra
 now exist, so it is correctable. **CLOSED 2026-11-18 (P6-D29, V7).** Rebuilt on all three real
-reduced spectra (WASP-39b PRISM, WASP-96b NIRISS, K2-18b NIRISS; 3,425 frames). Full-frame
-scoring confirms translation null holds or splits; MMD is 3.7x to 4.0x worse than domain randomisation.
-Last CycleGAN run completed.
+reduced spectra (WASP-39b PRISM, WASP-96b NIRISS, K2-18b NIRISS; 3,393 frames on 26 shared bins).
+Full-frame scoring confirms translation null holds or splits; MMD is 3.7x to 4.0x worse than domain
+randomisation, and 3.71x to 3.92x on the corrected metric basis (P6-D33). Last CycleGAN run completed.
 
 **G9. Amortization is dead and nothing replaces it.** Revivable: a calibrated amortized
 posterior mapping reduction-induced spread across targets is something NS cannot afford
