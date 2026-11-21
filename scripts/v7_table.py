@@ -32,6 +32,22 @@ def load(p: Path):
     return json.load(open(p))["conditions"] if p.exists() else None
 
 
+def load_published(run: str):
+    """The published per-target numbers, on the SAME MMD basis as the pooled run.
+
+    `ablation.json` was scored with the basis fitted on all four arms, including
+    the translated output, so its MMD is checkpoint-dependent and is not
+    comparable to anything scored on another checkpoint. `ablation_fixedbasis.json`
+    is the same checkpoint re-scored with the basis fitted on sim and real only.
+    Prefer it, and say so if it is absent rather than silently mixing bases.
+    """
+    d = Path("configs") / run
+    fx = d / "ablation_fixedbasis.json"
+    if fx.exists():
+        return load(fx), True
+    return load(d / "ablation.json"), False
+
+
 def verdict(c):
     s, r, g = c["sim_baseline"], c["domain_random"], c["cyclegan_trans"]
     worse_r = g["mmd_to_real"] > r["mmd_to_real"] and g["kl_to_real"] > r["kl_to_real"]
@@ -51,15 +67,27 @@ def main():
           f"{'published GAN':>15}{'KL random':>11}{'pooled':>9}{'shift':>8}  verdict")
     print("  " + "-" * 96)
     verdicts = {}
+    stale = False
     for t in LABEL:
         for n in ("full", "n56"):
-            c = load(RUN / f"ablation_{t}_{n}.json")
+            # Prefer the fixed-basis rescoring of the same checkpoint. The
+            # originals stay as the record of what was committed, but mixing a
+            # legacy-basis pooled number with a fixed-basis published one in one
+            # row would be worse than either basis used consistently.
+            c = (load(RUN / f"ablation_fixedbasis_{t}_{n}.json")
+                 or load(RUN / f"ablation_{t}_{n}.json"))
             if c is None:
                 print(f"  {LABEL[t]:<17}{n:<7}  [missing] run scripts/run_v7_pooled.sh")
                 continue
             pub = PUBLISHED.get((t, n))
-            pc = load(Path("configs") / pub / "ablation.json") if pub else None
-            pg = f"{pc['cyclegan_trans']['mmd_to_real']:.4f}" if pc else "--"
+            pc, matched = load_published(pub) if pub else (None, True)
+            if pc is None:
+                pg = "--"
+            else:
+                pg = f"{pc['cyclegan_trans']['mmd_to_real']:.4f}"
+                if not matched:
+                    pg += "*"
+                    stale = True
             v = verdict(c)
             if n == "full":
                 verdicts[t] = v
@@ -70,6 +98,10 @@ def main():
                   f"{c['cyclegan_trans']['kl_to_real']:>9.3f}"
                   f"{c['cyclegan_trans']['mean_shift']:>8.3f}  {v}")
     print("  " + "-" * 96)
+    if stale:
+        print("  * published number is on the OLD checkpoint-dependent MMD basis and is "
+              "not comparable.\n    Re-score it with run_cyclegan_ablation_standalone.py "
+              "to produce ablation_fixedbasis.json.")
     if verdicts:
         vs = set(verdicts.values())
         overall = vs.pop() if len(vs) == 1 else "mixed (" + ", ".join(

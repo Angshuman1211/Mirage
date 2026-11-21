@@ -231,7 +231,8 @@ def apply_domain_randomisation(flux: np.ndarray, wlen: np.ndarray,
 # ── Main ──────────────────────────────────────────────────────────────────
 
 def main(n_samples: int = 500, real_domain: str | None = None,
-         ckpt: str | None = None, out: str | None = None) -> None:
+         ckpt: str | None = None, out: str | None = None,
+         legacy_basis: bool = False) -> None:
     ckpt_path = Path(ckpt) if ckpt else CKPT
     print(f"\n{'='*72}")
     print("  Phase 3 Track 2 — CycleGAN Ablation (standalone)")
@@ -283,9 +284,30 @@ def main(n_samples: int = 500, real_domain: str | None = None,
     cyc_err = cycle_consistency_error(model, sim_norm.astype(np.float32))
 
     # ── 2. MMD to real domain ──────────────────────────────────────────────
-    # Use PCA-reduced (10-dim) features to make MMD tractable
+    # PCA-reduced (10-dim) features, to make MMD tractable.
+    #
+    # THE BASIS MUST NOT CONTAIN THE ARM UNDER TEST. This originally fitted the
+    # SVD on vstack([sim_norm, real_rep, trans, domain_rand]), so the projection
+    # depended on the checkpoint being scored. Two consequences, both measured:
+    # the two baselines that involve no GAN at all moved by up to 0.0054 between
+    # checkpoints, and MMD magnitudes were not comparable across runs, which is
+    # precisely the comparison v7_table.py's published column makes. Worse, a
+    # translator whose output dominates the combined covariance drags the basis
+    # toward itself and so lowers its OWN measured distance: refitting the three
+    # published tier-2 translators on a clean basis moved them from 0.57x-1.08x
+    # of domain randomisation to 1.23x-1.60x, which reverses the sign of that
+    # comparison. Fitting on sim_norm and real_rep only makes the basis a
+    # property of the cell rather than of the checkpoint, and the baselines then
+    # agree to 0.0000 across checkpoints.
+    #
+    # KL, per-bin shift and corr_similarity are computed in bin space below and
+    # were never affected, which is the independent check on this diagnosis: KL
+    # for domain randomisation matched to the third decimal across runs while MMD
+    # for the same arm did not.
     from numpy.linalg import svd
-    combined = np.vstack([sim_norm, real_rep, trans, domain_rand])
+    basis_src = ([sim_norm, real_rep, trans, domain_rand] if legacy_basis
+                 else [sim_norm, real_rep])
+    combined = np.vstack(basis_src)
     _, _, Vt = svd(combined - combined.mean(axis=0), full_matrices=False)
     V10 = Vt[:10].T
 
@@ -417,6 +439,12 @@ if __name__ == "__main__":
                    help="npz from build_real_domain.py (genuine real distribution)")
     p.add_argument("--ckpt", type=str, default=None)
     p.add_argument("--out", type=str, default=None)
+    p.add_argument("--legacy-basis", action="store_true",
+                   help="fit the MMD basis on all four arms, as originally "
+                        "shipped. Reproduces the stored pre-2026-11-20 numbers "
+                        "and is checkpoint-dependent. See the note at the MMD "
+                        "block for why this is wrong.")
     args = p.parse_args()
     main(n_samples=args.n_samples, real_domain=args.real_domain,
-         ckpt=args.ckpt, out=args.out)
+         ckpt=args.ckpt, out=args.out,
+         legacy_basis=args.legacy_basis)

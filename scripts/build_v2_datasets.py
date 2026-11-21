@@ -152,7 +152,7 @@ def main() -> None:
     dq = np.abs(q_flux - flux_all)
     summary["arms"]["quantile"] = {
         "hdf": str(dst_q),
-        "space": "per-bin standardised (matches P6-D13 MMD=0.1056)",
+        "space": "per-bin standardised (matches P6-D13 MMD=0.1057, P6-D33 basis)",
         "mean_abs_delta": float(dq.mean()),
         "mean_shift": float(q_flux.mean() - flux_all.mean()),
         "flux_mean_range": [float(q_flux.mean(0).min()), float(q_flux.mean(0).max())],

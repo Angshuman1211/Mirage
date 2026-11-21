@@ -1038,19 +1038,21 @@ In both families the spread of the three group means is smaller than the largest
 
 | arm | MMD to real | no adaptation | KL | mean shift |
 |---|---|---|---|---|
-| no adaptation | 0.2883 +/- 0.0015 | 0.2883 | 3.33 | 0.173 |
-| structured randomisation | 0.1682 +/- 0.0013 | 0.2883 | 3.31 | 0.179 |
-| CycleGAN (tier-1 generator) | 0.7823 +/- 0.0113 | 0.2883 | 3.33 | 0.272 |
-| per-bin affine | 0.2883 +/- 0.0015 | 0.2883 | 3.33 | 0.173 |
-| per-bin quantile mapping | **0.1056 +/- 0.0010** | 0.2883 | **0.89** | 0.163 |
-| classifier reweighting | 0.1459 +/- 0.0017 | 0.2883 | 2.33 | 0.454 |
+| no adaptation | 0.2882 +/- 0.0013 | 0.2882 | 3.33 | 0.173 |
+| structured randomisation | 0.1707 +/- 0.0021 | 0.2882 | 3.31 | 0.179 |
+| CycleGAN (tier-1 generator) | 0.7822 +/- 0.0162 | 0.2882 | 3.33 | 0.272 |
+| per-bin affine | 0.2882 +/- 0.0013 | 0.2882 | 3.33 | 0.173 |
+| per-bin quantile mapping | **0.1057 +/- 0.0019** | 0.2882 | **0.89** | 0.163 |
+| classifier reweighting | 0.1460 +/- 0.0017 | 0.2882 | 2.33 | 0.454 |
 
 Mean +/- sd over seeds 0-2. The seed varies only the held-out real subsample. Mean shift here is measured against real frames standardised by the FIT half's statistics, so it includes real drift between the two halves of the visit. That is why it is about 0.17 for no adaptation, where the published protocol gave 0.03.
 
-1. **Quantile mapping is the best arm on both metrics**, -63% MMD and KL 3.33 to 0.89. A per-bin CDF transfer with no learning loop beats structured randomisation (-42%), and beats the CycleGAN by a factor of 7.4.
+1. **Quantile mapping is the best arm on both metrics**, -63% MMD and KL 3.33 to 0.89. A per-bin CDF transfer with no learning loop beats structured randomisation, which itself manages -41% against no adaptation, by a further -38%, and beats the CycleGAN by a factor of 7.4.
 2. **Affine is identical to no adaptation, by construction.** The per-bin standardisation undoes any per-bin affine map. So the work split's sentence "affine and quantile mapping beat no adaptation" cannot be tested in this space. Half of it is a property of the metric, not a result. Report affine as "not distinguishable in a per-bin-standardised metric" rather than as a null.
 3. **The sim-versus-real classifier reaches AUC 1.000** (3-fold cross-validated, gradient boosting on the full 52-bin vector). The density ratio p(real)/p(sim) has no common support to estimate. The reweighted arm's MMD gain comes from up-weighting the sim samples nearest the real cloud (weight ESS 135 of 500). Its mean shift gets worse, 0.454, because those few samples sit off-centre. Reweighting cannot move mass where the simulator has none, and AUC 1.0 says that is the situation.
 4. **The CycleGAN ordering is unchanged under held-out scoring**, 2.7x worse than no adaptation. The negative does not depend on scoring against frames the generator saw.
+
+> **Corrected 2026-11-21 (P6-D33).** The MMD column was computed in a PCA basis fitted on `[sim, real, cyclegan, randomised]`, so two of the six arms sat inside the space all six were scored in. `scripts/v2_cheap_baselines.py` now fits it on `[sim, real]` only and the three seeds were rerun into `v2_baselines_fixedbasis_seed{0,1,2}.json`. **Every finding in this entry stands.** Only structured randomisation moves materially, 0.1682 to 0.1707, which leaves quantile mapping's margin over it a little wider rather than narrower. The KL and mean-shift columns are computed in bin space and are untouched, which is how the defect was found. `classifier reweighting` is the one arm whose rerun is not bit-reproducible across machines, so its entry above is the committed mean plus the measured basis effect of +0.0001; this laptop prints 0.1443 for it, and that 0.0017 gap is the gradient-boosting classifier rather than the basis. P6-D31's table inherits this column and was corrected with it.
 
 **What this does not establish.** All of this is distributional. The inferential column, posterior JS to the NS anchor, needs one flow trained per arm on the mapped training set plus the anchor, and neither exists in the repository. Quantile mapping winning on MMD is exactly the situation the dissociation thesis warns about. A per-bin marginal match can be achieved by a map that destroys the parameter information a retrieval reads, so it must not be quoted as "quantile mapping helps retrieval" until the inferential column exists. V2's fallback in the work split applies to that half: Track 1 absorbs it.
 
@@ -1668,27 +1670,33 @@ So widening the training sigma range did not remove the sim-to-real bias, it rem
 
 ### P6-D29 — V7 executed: the pooled 3-spectrum real side does not rescue CycleGAN; on full frames the null is mixed (WASP-39b PRISM split, WASP-96b holds, K2-18b holds) and on MMD translation remains 3.7x to 4.0x worse than domain randomisation [Phase 6, 2026-11-18, Track 2 — closes G8b]
 
-**The experiment.** `scripts/run_v7_pooled.sh`, `scripts/train_cyclegan.py`, `scripts/run_cyclegan_ablation_standalone.py`, `scripts/v7_table.py`. The real domain was rebuilt on all three real JWST transmission spectra (`data/real_domain/real_domain_all3_abcniriss.npz`: WASP-39b PRISM 52 bins, WASP-96b NIRISS 90 bins, K2-18b NIRISS 156 bins; 3,425 total frames). Generator trained with `--seed 0`, 200 epochs, `WeightedRandomSampler` balancing target draws per epoch, on CUDA (`NVIDIA GeForce RTX 3050 Laptop GPU`). Intermediate `cyclegan_epoch_*.pt` files were cleaned; `configs/cyclegan_v7_pooled3/cyclegan_best.pt` (30.4 MB) was saved. 6 standalone ablations were scored: full-frame and N=56 truncated frame evaluations across all three targets.
+**The experiment.** `scripts/run_v7_pooled.sh`, `scripts/train_cyclegan.py`, `scripts/run_cyclegan_ablation_standalone.py`, `scripts/v7_table.py`. The real domain was rebuilt on all three real JWST transmission spectra (`data/real_domain/real_domain_all3_abcniriss.npz`: **3,393 out-of-transit frames on the 26 ABC bins shared by all three targets**, being WASP-39b PRISM 3,241 frames, WASP-96b NIRISS 56, K2-18b NIRISS 96). The three instruments have 52, 90 and 156 native bins, but pooling them into one domain B requires one common grid, which is what the `abcniriss` grid is: the 26 native ABC bins inside 0.85 to 2.83 um that all three cover. `configs/cyclegan_v7_pooled3/config.json` records this at `n_real_samples: 3393` and `n_bins: 26`, and all six scorings run on those same 26 bins. Generator trained with `--seed 0`, 200 epochs, `WeightedRandomSampler` balancing target draws per epoch, on CUDA (`NVIDIA GeForce RTX 3050 Laptop GPU`). Intermediate `cyclegan_epoch_*.pt` files were cleaned; `configs/cyclegan_v7_pooled3/cyclegan_best.pt` (30.4 MB) was saved. 6 standalone ablations were scored: full-frame and N=56 truncated frame evaluations across all three targets.
 
 **Reproduction and evaluation.** The legacy single-spectrum bootstrap expansion was completely retired in code (`--real-domain` required).
 
-| Target | Frame / Grid | MMD (sim) | MMD (random) | MMD (CycleGAN) | KL (random) | KL (CycleGAN) | Mean shift | Verdict |
-|---|---|---|---|---|---|---|---|---|
-| **WASP-39b PRISM** | full (52 bins) | 0.3625 | 0.2557 | 0.9518 (published: 0.9429) | 5.760 | 4.313 | 0.472 | **split** (MMD worse, KL better) |
-| **WASP-96b NIRISS** | full (90 bins) | 0.3688 | 0.2581 | 1.0090 | 2.077 | 5.993 | 0.463 | **holds** (translation worse on both) |
-| **K2-18b NIRISS** | full (156 bins) | 0.3619 | 0.2532 | 1.0012 | 1.576 | 3.143 | 0.463 | **holds** (translation worse on both) |
-| WASP-39b PRISM | N56 (52 bins) | 0.3625 | 0.2557 | 0.9518 | 5.760 | 4.313 | 0.472 | split |
-| WASP-96b NIRISS | N56 (56 bins) | 0.3689 | 0.2582 | 0.9996 | 2.074 | 3.791 | 0.457 | holds |
-| K2-18b NIRISS | N56 (56 bins) | 0.3621 | 0.2541 | 0.9998 | 1.575 | 3.655 | 0.458 | holds |
+All six scorings are on the same 26 shared bins. "full" and "N56" differ in the number of real FRAMES scored against, not in the grid: N56 truncates each target to its first 56 frames so that the frame count is matched to the scarcest target.
+
+| Target | Frames scored | MMD (sim) | MMD (random) | MMD (CycleGAN) | KL (random) | KL (CycleGAN) | Mean shift | GAN / random | Verdict |
+|---|---|---|---|---|---|---|---|---|---|
+| **WASP-39b PRISM** | full (3,241) | 0.3625 | 0.2557 | 0.9518 (published: 0.9429) | 5.760 | 4.313 | 0.472 | 3.72x | **split** (MMD worse, KL better) |
+| **WASP-96b NIRISS** | full (56) | 0.3688 | 0.2581 | 1.0090 | 2.077 | 5.993 | 0.463 | 3.91x | **holds** (translation worse on both) |
+| **K2-18b NIRISS** | full (96) | 0.3619 | 0.2532 | 1.0012 | 1.576 | 3.143 | 0.463 | 3.95x | **holds** (translation worse on both) |
+| WASP-39b PRISM | N56 (56) | 0.3680 | 0.2572 | 0.9894 | 9.184 | 8.224 | 0.463 | 3.85x | split |
+| WASP-96b NIRISS | N56 (56) | 0.3688 | 0.2581 | 1.0090 | 2.077 | 5.993 | 0.463 | 3.91x | holds |
+| K2-18b NIRISS | N56 (56) | 0.3710 | 0.2599 | 1.0110 | 2.242 | 5.634 | 0.463 | 3.89x | holds |
+
+WASP-96b's two rows are identical on purpose. That target contributes exactly 56 frames, so truncating to 56 is a no-op, and the two scorings reading the same values is the determinism check passing rather than a copy-paste. The numbers in this table are the ones stored in `configs/cyclegan_v7_pooled3/ablation_{target}_{full,n56}.json`, which are computed on the pre-P6-D33 MMD basis. The same checkpoint re-scored on the corrected basis gives 3.71x to 3.92x, tabulated in P6-D33.
 
 **The decision-log sentence required by 08:**
 *"With the real side rebuilt from all three reduced spectra, the translation null mixed (WASP-39b PRISM split, WASP-96b NIRISS holds, K2-18b NIRISS holds) on full-frame scoring."*
 
 **Key findings:**
-1. **The single-spectrum jitter criticism is removed without overturning the negative result.** The objection that CycleGAN failed because domain B was a single spectrum jittered 500 ways is refuted. Even with 3 diverse planetary spectra and 3,425 genuine out-of-transit frames balanced by target, CycleGAN fails to match the real noise distribution.
-2. **On MMD alone, pooled CycleGAN is 3.7x to 4.0x worse than domain randomisation across all three targets.** Domain randomisation achieves MMD 0.253–0.258, while CycleGAN produces MMD 0.952–1.009 (worse even than unadapted simulation at 0.362–0.369).
-3. **KL divergence shows a target-dependent split on WASP-39b only.** On WASP-39b PRISM, CycleGAN achieves KL 4.313 vs randomisation's 5.760 (a modest distributional gain on marginal shape, but at severe MMD penalty and a 0.472 mean shift). On WASP-96b and K2-18b, CycleGAN is strictly worse on both KL and MMD.
+1. **The single-spectrum jitter criticism is removed without overturning the negative result.** The objection that CycleGAN failed because domain B was a single spectrum jittered 500 ways is refuted. Even with 3 diverse planetary spectra and 3,393 genuine out-of-transit frames balanced by target, CycleGAN fails to match the real noise distribution.
+2. **On MMD alone, pooled CycleGAN is 3.7x to 4.0x worse than domain randomisation across all three targets.** Across all six cells the ratio runs 3.72x to 3.95x. Domain randomisation achieves MMD 0.253–0.260, while CycleGAN produces MMD 0.952–1.011 (worse even than unadapted simulation at 0.362–0.371).
+3. **KL divergence shows a target-dependent split on WASP-39b only.** On WASP-39b PRISM full frames, CycleGAN achieves KL 4.313 vs randomisation's 5.760, and the same sign holds on its N56 scoring (8.224 vs 9.184) (a modest distributional gain on marginal shape, but at severe MMD penalty and a 0.472 mean shift). On WASP-96b and K2-18b, CycleGAN is strictly worse on both KL and MMD.
 4. **V7 is the final CycleGAN run.** It closes G8b and provides the empirical foundation for retiring GAN-based data-space domain translation in favour of principled baselines (V2) and representation-space noise conditioning.
+
+> **Corrected 2026-11-21 (P6-D33).** Two documentation errors in the original write-up of this entry have been fixed above, both transcription rather than result. First, the three N56 rows disagreed with this entry's own committed JSONs on MMD, KL and mean shift: the WASP-39b N56 row repeated the full-frame row verbatim, and the WASP-96b and K2-18b N56 rows carried values matching no stored file. All six rows now read from `ablation_{target}_{full,n56}.json`. Second, the pooled domain was described as 3,425 frames on per-target grids of 52, 90 and 156 bins; it is 3,393 frames on 26 shared bins. **No verdict, ratio or conclusion in this entry changes.** The headline, the decision-log sentence and the closure of G8b all stand as written.
 
 ---
 
@@ -1734,33 +1742,35 @@ Cycle-consistency error: `0.5430` (indicating generator distortion).
 
 | arm | MMD (↓) | MMD_none | cov@68 | cov@95 | width68 (↓) | logdens (↑) | JS_ctrl (↓) | JS_NS |
 |---|---|---|---|---|---|---|---|---|
-| **no_adapt_clean** | 0.2883 | 0.2883 | 0.160 | 0.350 | 0.928 | -68.33 | 0.539 | pending* |
-| **struct_rand_cov** | 0.1682 | 0.2883 | 0.690 | 0.993 | 2.212 | -7.70 | 0.000 | pending* |
-| **affine_data_cov** | 0.2883 | 0.2883 | 0.690 | 0.993 | 2.249 | -8.20 | 0.035 | pending* |
-| **quantile_cov** | **0.1056** | 0.2883 | **0.677** | **0.950** | **2.073** | -8.26 | 0.020 | pending* |
-| **reweight_cov** | 0.1459 | 0.2883 | 0.700 | 0.980 | 2.235 | **-7.61** | 0.124 | pending* |
-| **cyclegan_cov** | 0.7823 | 0.2883 | 0.550 | 0.843 | 2.013 | -17.65 | 0.107 | pending* |
-| *p6d3_ctrl_cov (CPU ref)* | 0.1682 | 0.2883 | 0.693 | 0.987 | 2.222 | -7.71 | 0.009 | pending* |
+| **no_adapt_clean** | 0.2882 | 0.2882 | 0.160 | 0.350 | 0.928 | -68.33 | 0.539 | pending* |
+| **struct_rand_cov** | 0.1707 | 0.2882 | 0.690 | 0.993 | 2.212 | -7.70 | 0.000 | pending* |
+| **affine_data_cov** | 0.2882 | 0.2882 | 0.690 | 0.993 | 2.249 | -8.20 | 0.035 | pending* |
+| **quantile_cov** | **0.1057** | 0.2882 | **0.677** | **0.950** | **2.073** | -8.26 | 0.020 | pending* |
+| **reweight_cov** | 0.1460 | 0.2882 | 0.700 | 0.980 | 2.235 | **-7.61** | 0.124 | pending* |
+| **cyclegan_cov** | 0.7822 | 0.2882 | 0.550 | 0.843 | 2.013 | -17.65 | 0.107 | pending* |
+| *p6d3_ctrl_cov (CPU ref)* | 0.1707 | 0.2882 | 0.693 | 0.987 | 2.222 | -7.71 | 0.009 | pending* |
 
-*\* Note: Both MMD and MMD_none (0.2883) reported per V2 acceptance criteria. `data/real_ess/wasp39b_ns_posterior_fitrad.npz` is absent locally; `scripts/v2_inferential_eval.py --score-ns-only` will populate JS_NS if dropped in.*
+*\* Note: Both MMD and MMD_none (0.2882) reported per V2 acceptance criteria. The MMD column is the 3-seed mean of the held-out protocol on the corrected metric basis (P6-D33), regenerated into `configs/v2_baselines_wasp39/v2_baselines_fixedbasis_seed{0,1,2}.json`; see the correction note at the end of this entry. JS_NS is still open and is blocked on the trained arms rather than on the anchor, which is present in the working tree at `data/real_ess/wasp39b_ns_posterior_fitrad.npz` (321 KB) and was invisible to a fresh clone only because `.gitignore` excludes `data/*`. `configs/v2_{quantile,affine,reweight}_cov/` hold `config.yaml`, `git-hash.txt` and `requirements.txt` but no `model__best.pt`, so the real-WASP-39b columns cannot be recomputed anywhere but the machine that trained them. **Do not run `scripts/v2_inferential_eval.py --score-ns-only` without those checkpoints present: it rewrites the whole of `v2_inferential.json` from what it can recompute, and silently drops the JS_ctrl column it cannot.***
 
 **Key Findings:**
 
 1. **Exact P6-D3 reproduction verified:** The CPU-trained `noisecond_cov` baseline (`p6d3_ctrl_cov`) matches the CUDA-trained structured randomisation arm (`struct_rand_cov`) to within 0.003 coverage (0.693 vs 0.690) and JS 0.009 on real WASP-39b, confirming complete reproducibility across hardware and environments.
 2. **Catastrophic failure of unadapted simulation:** When evaluated under realistic correlated noise, `no_adapt_clean` exhibits severe undercoverage (`cov@68 = 0.160`, `cov@95 = 0.350`), and truth log-density collapses to -68.33 nats. Unadapted neural simulation is completely unviable for precision JWST spectroscopy.
 3. **Quantile mapping achieves state-of-the-art calibration and sharpness:**
-   - **Distributional:** MMD drops to **0.1056** (37% better than structured randomisation 0.1682, and 63% better than raw simulation 0.2883; KL drops from 3.31 to 0.89).
+   - **Distributional:** MMD drops to **0.1057** (38% better than structured randomisation 0.1707, and 63% better than raw simulation 0.2882; KL drops from 3.33 to 0.89).
    - **Inferential:** Coverage achieves exact nominal calibration: **0.677** at 68% and **0.950** at 95%.
    - **Sharpness:** Credible interval width is **2.073**, which is **6.3% narrower / sharper** than structured randomisation (2.212) without undercovering.
    - **Real posterior:** Real WASP-39b posterior is consistent with the control ($JS = 0.020$, $T = 1612$ K, $\log H_2O = -7.40$).
-4. **Classifier reweighting achieves best truth log-density:** `reweight_cov` achieves the highest log-density at truth among all evaluated models (**-7.61 nats**), with excellent coverage (0.700 / 0.980) and strong MMD (0.1459).
+4. **Classifier reweighting achieves best truth log-density:** `reweight_cov` achieves the highest log-density at truth among all evaluated models (**-7.61 nats**), with excellent coverage (0.700 / 0.980) and strong MMD (0.1460).
 5. **CycleGAN fails on every metric:**
-   - Distributional MMD is **0.7823** (4.6x worse than domain randomisation, 2.7x worse than doing nothing).
+   - Distributional MMD is **0.7822** (4.6x worse than domain randomisation, 2.7x worse than doing nothing).
    - Inferential coverage severely undercovers: `cov@68 = 0.550` and `cov@95 = 0.843`.
    - Log-density collapses to **-17.65 nats** (nearly 10 nats below standard controls).
 6. **Decision & Closure:**
    - G8 is definitively closed. Cheap statistical distribution-matching baselines (specifically quantile mapping and classifier reweighting) strictly dominate CycleGAN on both distribution-level and inference-level metrics.
    - Complex adversarial pixel-level translation is unnecessary and counterproductive in high-precision exoplanet spectroscopy; lightweight quantile mapping and representation-level noise conditioning provide all measurable calibration benefits with superior sharpness.
+
+> **Corrected 2026-11-21 (P6-D33).** The MMD column above was computed in a PCA basis fitted on `[sim, real, cyclegan, randomised]`, which put two of the six arms inside the space all six were scored in. `scripts/v2_cheap_baselines.py` now fits the held-out basis on `[sim, real]` only, and the column has been regenerated from three fresh seeds. **The correction is immaterial here and the entry's conclusions are unaffected.** Only `struct_rand_cov` moves by more than 0.0001 (0.1682 to 0.1707), which nudges quantile mapping's margin over structured randomisation from 37% to 38%, in V2's favour. The isolated basis effect, measured by running both bases on this machine at seed 0, is at most 0.0031 on any arm. Running the pre-fix basis here reproduced the committed column exactly on five of six arms, the exception being `reweight_cov`, whose logistic classifier is not bit-reproducible across machines and lands at 0.1441 here against the committed 0.1459. Its value in the table above is therefore the committed number plus the measured basis effect, 0.1459 + 0.0001 = **0.1460**, so that the whole column stays on one machine and one basis. **Rerunning `v2_inferential_eval.py` on this laptop will print 0.1443 for that one arm**, and the 0.0017 gap is the classifier, not the basis. Every other arm agrees to 0.0001. Why the effect is so small, when the same defect reversed the published tier-2 comparison in P6-D33, is itself informative: domain B here is 3,241 real frames, so the real covariance is well determined and no single arm can drag the retained components, whereas the tier-2 cells had 56 frames. The sign of the contamination is not predictable from the setup, which is the argument for fixing the basis rather than reasoning about which way it leans.
 
 ---
 
@@ -1796,3 +1806,58 @@ Cycle-consistency error: `0.5430` (indicating generator distortion).
 - **Pipeline choice is 6.4x to 9.5x larger than the difference between the two standard exoplanet atmospheric radiative transfer codes.**
 
 **Conclusion.** Data reduction systematics in JWST transmission spectroscopy are first-order effects, on par with the 1σ observational uncertainties, and dwarf forward-model simulator discrepancies. Tuning neural posterior estimators or domain adaptation architectures to sub-percent precision on a single reduction is misspecified when the reduction itself shifts by nearly 1σ in mean depth and 1–1.6σ in spectral shape.
+
+---
+
+### P6-D33 — the MMD basis was fitted on the arm under test, so it moved with the checkpoint being scored; the fix leaves V7's verdict standing and reverses the published tier-2 comparison [Phase 6, 2026-11-20, MAJOR — corrects P6-D13's MMD column and the tier-2 table, does NOT disturb P6-D29]
+
+**Context.** This came out of an independent second run of V7, done on Kaggle before P6-D29 was pulled and without knowledge of it. The V7 result itself belongs to P6-D29 and is not restated here. What this entry records is a defect in the metric all of the CycleGAN work is scored by, and a replication.
+
+**The defect.** `run_cyclegan_ablation_standalone.py` fitted the 10-dim PCA basis on `vstack([sim_norm, real_rep, trans, domain_rand])`, so the projection depended on the checkpoint being scored. **This is the same class of error as the circularity reviewer T46u caught in the calibration**, a yardstick contaminated by the thing it measures, and it was found the same way, by noticing that a quantity which cannot depend on the checkpoint did.
+
+**How it surfaced, and the check that confirms it rather than merely fits it.** The second run's `sim_baseline` came out at 0.3691 on WASP-96b where the stored tier-2 run on the bit-identical real domain had 0.3637. `sim_baseline` involves no GAN at all. Re-scoring the published checkpoint with the current script reproduced its stored numbers exactly, so the script had not changed, and re-running the Kaggle cells locally reproduced them to 0.00 percent, so the environment was not responsible. The independent confirmation is that **KL, per-bin shift and `corr_similarity` are computed in bin space and never moved**, so `kl_to_real` for domain randomisation matched to the third decimal across runs while `mmd_to_real` for that same arm did not.
+
+**The fix.** Fit the basis on `sim_norm` and `real_rep` only, both fixed by the cell rather than the checkpoint. The two baselines then agree to **0.0000** across checkpoints, against drift up to 0.0054 as shipped, and the agreement is **0.000000 in all six cells across two independently trained V7 checkpoints**, which is a stronger test than one checkpoint can give. `--legacy-basis` reproduces the stored numbers to 2.4e-5 relative.
+
+**RESULT 1. P6-D29 survives the correction with its headline intact.** The canonical V7 checkpoint re-scored on the clean basis, beside the numbers as committed:
+
+| cell | as committed | ratio | fixed basis | ratio |
+|---|---|---|---|---|
+| WASP-39b full | 0.9518 | 3.72x | 0.9504 | **3.71x** |
+| WASP-39b n56 | 0.9894 | 3.85x | 0.9860 | **3.81x** |
+| WASP-96b full and n56 | 1.0090 | 3.91x | 1.0107 | **3.84x** |
+| K2-18b full | 1.0012 | 3.95x | 1.0020 | **3.92x** |
+| K2-18b n56 | 1.0110 | 3.89x | 1.0118 | **3.81x** |
+
+P6-D29's "3.7x to 4.0x worse than domain randomisation" becomes **3.71x to 3.92x**. Nothing is retracted. The reason it barely moves is that this translator's output is extreme enough to dominate the combined covariance either way, which is the same behaviour the full-frame control shows at 3.69x against 3.68x.
+
+**RESULT 2, AND THIS ONE CHANGES PUBLISHED NUMBERS. The published tier-2 translators never beat domain randomisation.**
+
+| published arm | as shipped | fixed basis |
+|---|---|---|
+| WASP-39b n56 | 0.2748, 1.08x of randomisation | 0.4152, **1.60x** |
+| WASP-96b n56 | 0.2298, **0.91x** | 0.3295, **1.25x** |
+| K2-18b n56 | 0.1488, **0.57x** | 0.3267, **1.23x** |
+| WASP-39b full, control | 0.9429, 3.69x | 0.9416, 3.68x |
+
+Two of the three appeared to beat randomisation, at 0.91x and 0.57x, and **that appearance was the basis moving**: a translator whose output dominates the combined covariance drags the projection toward itself and so lowers its own measured distance. On a clean basis all three are worse. This is the number that belongs in the manuscript as a correction, because the tier-2 table as published states that learned translation wins on two of three targets at 56 frames, and it does not.
+
+**RESULT 3. Two independent V7 runs replicate.** Same config, `seed 0`, 200 epochs, batch 64, `balance_targets`, same pooled domain, trained on different hardware, P6-D29's on an RTX 3050 laptop and this one on a Kaggle T4 in 49.8 min at best `loss_G` 1.2809. Translator against randomisation on the clean basis, run 1 **3.71x to 3.92x** and run 2 **3.25x to 3.72x**, same sign and same magnitude class in every cell. Neither run produced a translator in any meaningful sense: cycle-consistency error 0.655 against the 0.05 the script calls tight, and correlation similarity to the real frames of 0.004 to 0.019.
+
+**Two corrections owed to P6-D29's write-up, both documentation rather than result. BOTH APPLIED to that entry on 2026-11-21.**
+1. **Its table's three N56 rows disagree with its own committed JSONs.** The full rows all match. JSON against table: WASP-39b n56 0.3680 / 0.2572 / 0.9894 against 0.3625 / 0.2557 / 0.9518, WASP-96b n56 0.3688 / 0.2581 / 1.0090 against 0.3689 / 0.2582 / 0.9996, K2-18b n56 0.3710 / 0.2599 / 1.0110 against 0.3621 / 0.2541 / 0.9998. **The JSONs are the correct ones**, and the internal evidence is that WASP-96b's full and n56 cells are identical in the JSONs, which is what 56 real frames requires.
+2. **The pooled domain is misdescribed.** P6-D29 states 3,425 frames and per-target grids of 52, 90 and 156 bins. The domain is **3,393 frames on 26 shared ABC bins**, as `configs/cyclegan_v7_pooled3/config.json` itself records at `n_real_samples: 3393` and `n_bins: 26`, and all six scorings run on those same 26 bins. A shared grid is the whole point of `abcniriss`.
+
+**How far the defect reaches, checked file by file.** `v2_inferential_eval.py` does not compute MMD, it loads the stored P6-D13 values through `load_p6d13_mmd`, so **the MMD column of P6-D31's table inherits the defect and needs regenerating**, while that entry's coverage and log-density headline is computed independently and is untouched. `build_v2_datasets.py:189` already fits on `sim + real` only and is clean. `v5_h7_pipeline_shift.py` computes no MMD. P6-D30's mean-shift claim is computed in bin space. **So the only live correction outside this entry is P6-D31's MMD column**, and separately `v2_cheap_baselines.py:265-267`, where the held-out protocol fitted the basis on `[sim, real_test, trans, dr]` and then scored all six arms in it, so `cyclegan` and `domain_random` sat in the basis while `affine`, `quantile` and `reweight` did not.
+
+**ALL FIXED AND REGENERATED on 2026-11-21, and the outcome corrects a prediction made in the paragraph above.** `v2_cheap_baselines.py` now fits the held-out basis on `[sim, real_test]` and takes `--legacy-basis` for reproducing the committed files, and the three seeds were rerun into `configs/v2_baselines_wasp39/v2_baselines_fixedbasis_seed{0,1,2}.json`. **P6-D13 carries the same column and was corrected with P6-D31**, since P6-D13 is where it was first reported and P6-D31's table inherits it. `v2_inferential_eval.py` now prefers the fixed-basis files and warns if it has to fall back, so the stale column cannot quietly return on the next run. The downstream copies in `README.md`, `07_state_gaps_and_research_agenda.md` and `08_work_split_v2.md` were updated too. The reproduction block earlier in that script keeps the four-arm basis deliberately, since its only job is to match `configs/cyclegan_t1_wasp39/ablation.json`, which was computed that way.
+
+The result is that **P6-D31's MMD column barely moves**. Only `struct_rand_cov` changes by more than 0.0001, from 0.1682 to 0.1707, and the basis effect isolated at seed 0 on one machine is at most 0.0031 on any arm. **The reasoning quoted above, that the contamination flatters arms inside the basis and so V2's margin "should widen rather than narrow", was wrong on both counts.** The CycleGAN's measured distance went slightly DOWN when it was taken out of the basis (0.7845 to 0.7789 at seed 0), not up, because with only 10 of 47 components retained, a basis fitted with the translator in it keeps directions where that translator is pathological, and a basis fitted without it projects part of that pathology away. The quantile-over-CycleGAN margin therefore narrowed a hair rather than widening, while the quantile-over-randomisation margin widened from 37% to 38%.
+
+**The lesson is the one that matters for the manuscript.** The sign and size of basis contamination are not predictable from the setup. The same defect reversed the published tier-2 comparison in RESULT 2 above and is nearly undetectable in V2, and the difference is the number of real frames defining domain B: 56 in the tier-2 cells against 3,241 here. With a well-determined real covariance no single arm can drag the retained components, and with 56 frames it can. That is an argument for fixing the basis rather than for reasoning about which way a contaminated one leans, and it is worth one sentence in the paper, because a reader who accepts the tier-2 correction will ask why V2 did not move.
+
+**Two caveats on the pooling itself, neither of which any result rests on.**
+1. **Pooling bought less diversity than "three spectra" suggests.** WASP-39b contributes 3,241 of the 3,393 frames. The `WeightedRandomSampler` equalises expected draws at 1,131 per target per epoch, so WASP-96b's 56 unique frames are reused **20.2x** per epoch and K2-18b's 96 are reused **11.8x**. Every reused row is a genuine frame rather than synthetic jitter, so this is not the defect V7 retired, but V7 must not be written as though it tripled the real diversity.
+2. **The three targets' noise amplitudes differ by 17x to 26x**, mean per-bin fractional scatter 0.0182 for WASP-39b against 0.0011 and 0.0007. Balancing equalises counts, not amplitude.
+
+**Artefacts.** `run_cyclegan_ablation_standalone.py` and `v2_cheap_baselines.py` both carry the fix with `--legacy-basis`. `v7_table.py` prefers `ablation_fixedbasis.json` and marks the column with an asterisk if it falls back. `configs/cyclegan_v7_pooled3/ablation_fixedbasis_{target}_{full,n56}.json`, the canonical checkpoint on the clean basis. `configs/cyclegan_t2_*/ablation_fixedbasis.json` and `configs/cyclegan_ctrl_wasp39_26b_full/ablation_fixedbasis.json`, with every original `ablation.json` left untouched as the record of what was published. `configs/cyclegan_v7_pooled3_run2/`, the second independent run. `configs/v2_baselines_wasp39/v2_baselines_fixedbasis_seed{0,1,2}.json`, V2's held-out protocol on the clean basis, with the original `v2_baselines_seed*.json` left untouched. Kaggle tooling `scripts/kaggle_pack_v7.sh` and `scripts/make_kaggle_notebook_v7.py`, dataset `angshuman12/mirage-v7`, kernel `angshuman12/mirage-v7-pooled`.
