@@ -120,8 +120,22 @@ def norm_width68(samples_list: list[np.ndarray], scaler) -> float:
 
 
 def load_p6d13_mmd() -> tuple[dict[str, dict[str, float]], float]:
-    """Mean +- sd held-out MMD & KL across the 3 committed P6-D13 seeds."""
-    seeds = sorted(V2_DIR.glob("v2_baselines_seed*.json"))
+    """Mean +- sd held-out MMD & KL across the 3 committed P6-D13 seeds.
+
+    Prefers the fixed-basis rescoring (P6-D33). The pre-fix files fitted the PCA
+    basis on [sim, real, cyclegan, randomised], so two of the six arms sat inside
+    the space all six were scored in. The originals stay on disk as the record of
+    what was published, but a stale MMD column beside a current coverage column
+    would be worse than either basis used consistently.
+    """
+    seeds = sorted(V2_DIR.glob("v2_baselines_fixedbasis_seed*.json"))
+    if not seeds:
+        seeds = sorted(V2_DIR.glob("v2_baselines_seed*.json"))
+        if seeds:
+            print("  [warn] no v2_baselines_fixedbasis_seed*.json found, falling back to the\n"
+                  "         pre-P6-D33 basis. The MMD column below is the contaminated one.\n"
+                  "         Regenerate with: python scripts/v2_cheap_baselines.py --oot wasp39\n"
+                  "         --seed {0,1,2} --out .../v2_baselines_fixedbasis_seed{0,1,2}.json")
     if not seeds:
         return {}, float("nan")
     by_arm: dict[str, list[dict]] = {}
@@ -350,11 +364,16 @@ def print_unified_table(arms_spec, mmd_map, mmd_none, synth, real) -> None:
         jsn = f"{js_ns:.3f}" if js_ns is not None else "pending*"
         print(f"  {name:<18}{mmd:>8.4f}{mmd_none:>10.4f}{c68:>8}{c95:>8}{w68:>9}{ld:>10}{jsc:>9}{jsn:>9}")
     print("  " + "-" * 104)
-    print("  * Both MMD and MMD_none (no-adaptation 0.2883) are printed per V2 acceptance.")
+    print(f"  * Both MMD and MMD_none (no-adaptation {mmd_none:.4f}) are printed per V2 acceptance.")
     print("  * affine in per-bin standardised space is identical to struct_rand_cov; affine_data_cov maps into")
     print("    real WASP-39b's ABC-normalised depth space (mean +2.16, median sd 0.015).")
     if not NS_ANCHOR.exists():
         print(f"  * {NS_ANCHOR} is not present locally; drop it in and run `--score-ns-only` to populate JS_NS.")
+    missing = [n for n, d, _, _ in arms_spec if not (d / "model__best.pt").exists()]
+    if missing:
+        print(f"  * NO TRAINED CHECKPOINT for {', '.join(missing)}. The real-WASP-39b columns")
+        print("    cannot be recomputed on this machine, so JS_NS is blocked on the arms, not")
+        print("    the anchor. Commit the model__best.pt files or rerun where they live.")
 
 
 def main() -> None:
@@ -380,6 +399,29 @@ def main() -> None:
     else:
         synth = eval_synthetic(arms_spec, args.n_planets, args.n_samples, args.test_seed)
     real = eval_real_wasp39(arms_spec, args.n_real, score_ns_only=args.score_ns_only)
+
+    if args.score_ns_only:
+        # SAFETY (P6-D33). --score-ns-only reads the saved per-arm posterior draws from
+        # data/real_ess/v2_*_samples.npz, which are gitignored. On a machine without them
+        # every arm is skipped, `real` comes back empty, and writing it out destroys the
+        # committed table, JS_ctrl included. That happened once. Merge into the previous
+        # payload instead of replacing it, and refuse to write if nothing was recovered.
+        prev_real = prev.get("real_wasp39b", {}) if OUT_JSON.exists() else {}
+        if not real:
+            print("\n  [abort] --score-ns-only recovered no arms. The per-arm draws in\n"
+                  f"          {REAL_ESS_DIR}/v2_*_samples.npz are absent, so there is nothing to\n"
+                  "          rescore. Refusing to write, because doing so would erase the\n"
+                  f"          existing table in {OUT_JSON}. Nothing was changed.")
+            return
+        merged = dict(prev_real)
+        for arm, entry in real.items():
+            keep = dict(merged.get(arm, {}))
+            keep.update({k: v for k, v in entry.items() if v is not None})
+            merged[arm] = keep
+        dropped = [a for a in prev_real if a not in real]
+        if dropped:
+            print(f"  [note] kept previous values for {', '.join(dropped)}, not rescored this run.")
+        real = merged
     print_unified_table(arms_spec, mmd_map, mmd_none, synth, real)
 
     payload = {
