@@ -255,12 +255,12 @@ held-out real frames over three seeds (P6-D13):
 
 | arm | MMD to real | KL to real |
 |---|---|---|
-| no adaptation | 0.2883 | 3.33 |
-| per-bin affine | 0.2883 | 3.33 |
-| structured randomization | 0.1682 | 3.31 |
-| classifier reweighting | 0.1459 | 2.33 |
-| **per-bin quantile mapping** | **0.1056** | **0.89** |
-| CycleGAN translation | 0.7823 | 3.33 |
+| no adaptation | 0.2882 | 3.33 |
+| per-bin affine | 0.2882 | 3.33 |
+| structured randomization | 0.1707 | 3.31 |
+| classifier reweighting | 0.1460 | 2.33 |
+| **per-bin quantile mapping** | **0.1057** | **0.89** |
+| CycleGAN translation | 0.7822 | 3.33 |
 
 Three results here. **The learned translator is 2.7x worse than doing nothing**, so the claim is
 not the weak "translation adds nothing" but the stronger "translation actively moves the simulated
@@ -389,14 +389,17 @@ paradox, it widened it, the cov arm's real-data JS rising from 0.427 to 0.490 wh
 0.342. On Track 2, Vedanth closed the whole critical path on 2026-11-19/20, V7, V2, V3, V5 and V1b
 (P6-D29 through P6-D32), so **framing B has both of its pillars**.
 
-**Two corrections are owed before the manuscript quotes these numbers**, both in P6-D33. The MMD
-basis was fitted on the arm under test, which leaves V7's verdict standing at 3.71x to 3.92x but
-**reverses the published tier-2 comparison**, where the three per-target translators move from
-0.57x-1.08x of domain randomisation to 1.23x-1.60x and two change sign. The same defect sits in
-`v2_cheap_baselines.py:265-267`, so P6-D31's MMD column needs regenerating while its coverage
-headline is untouched. Separately, P6-D29's three N56 table rows disagree with its own committed
-JSONs, and it describes the pooled domain as 3,425 frames on 52/90/156 bins where it is 3,393
-frames on 26 shared bins.
+**One correction carries into the manuscript, and it has been applied throughout** (P6-D33). The
+MMD basis was fitted on the arm under test, so it moved with the checkpoint being scored. V7's
+verdict stands at 3.71x to 3.92x, but the published **tier-2 comparison reverses**: the three
+per-target translators move from 0.57x-1.08x of domain randomisation to 1.23x-1.60x, two of them
+change sign, and learned translation never beats randomisation anywhere. The same defect sat in
+`v2_cheap_baselines.py`, now fixed and the three seeds regenerated, where it turns out to be
+immaterial, moving only structured randomisation (0.1682 to 0.1707) and widening quantile
+mapping's margin from 37% to 38%. The difference between the two cases is the number of real
+frames defining the real domain, 56 against 3,241, so the sign of the contamination is not
+predictable from the setup. P6-D29's three N56 rows and its description of the pooled domain have
+also been corrected against its own committed JSONs. **No verdict or conclusion changed.**
 
 **So the only remaining work is the v2 manuscript.** arXiv v2 goes last, by decision (P6-D10).
 
