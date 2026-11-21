@@ -1,0 +1,88 @@
+{
+  "real_domain": "depth-free from OOT frames (wasp39), 47/52 bins covered by frames",
+  "n_sim": 500,
+  "seed": 0,
+  "split": {
+    "fit_frames": 1620,
+    "score_frames": 500,
+    "rule": "contiguous by integration_num, first half fit"
+  },
+  "reproduction_published_protocol": {
+    "sim": {
+      "mmd_to_real": 0.2925261533090161,
+      "kl_to_real": 3.9402946590964225,
+      "mean_shift": 0.0296726469365195
+    },
+    "domain_random": {
+      "mmd_to_real": 0.1704315893443415,
+      "kl_to_real": 3.6730563134384147,
+      "mean_shift": 0.032633344001799305
+    },
+    "cyclegan": {
+      "mmd_to_real": 0.7685553139480926,
+      "kl_to_real": 4.171820861962852,
+      "mean_shift": 0.3077186135065671
+    }
+  },
+  "published": {
+    "sim_baseline": {
+      "mmd_to_real": 0.2925263047218323,
+      "kl_to_real": 3.942736438406178,
+      "mean_shift": 0.029670197516679764,
+      "corr_similarity": 0.12508122188169957
+    },
+    "domain_random": {
+      "mmd_to_real": 0.17043191194534302,
+      "kl_to_real": 3.6747836656219453,
+      "mean_shift": 0.03263092041015625,
+      "corr_similarity": 0.1275017275398651
+    },
+    "cyclegan_trans": {
+      "mmd_to_real": 0.7685500979423523,
+      "kl_to_real": 4.171813762951109,
+      "mean_shift": 0.307718425989151,
+      "corr_similarity": 0.2759577906204562,
+      "cycle_consistency_error": 0.5745809674263
+    }
+  },
+  "heldout": {
+    "sim (no adaptation)": {
+      "mmd_to_real": 0.2890153392858224,
+      "kl_to_real": 3.2027142915209,
+      "mean_shift": 0.15559082801720162
+    },
+    "domain_random": {
+      "mmd_to_real": 0.17196207237248634,
+      "kl_to_real": 3.3497897305396753,
+      "mean_shift": 0.1612201958035392
+    },
+    "cyclegan": {
+      "mmd_to_real": 0.7788683806920009,
+      "kl_to_real": 3.0435443916242946,
+      "mean_shift": 0.27654496969527387
+    },
+    "affine": {
+      "mmd_to_real": 0.28901561873606185,
+      "kl_to_real": 3.2021830799563435,
+      "mean_shift": 0.15559082707321004
+    },
+    "quantile": {
+      "mmd_to_real": 0.10528206190789677,
+      "kl_to_real": 1.024689016538957,
+      "mean_shift": 0.14574394669650412
+    },
+    "reweight": {
+      "mmd_to_real": 0.14501986370539705,
+      "kl_to_real": 2.359273137457096,
+      "mean_shift": 0.4364422129921872
+    }
+  },
+  "reweight_diagnostics": {
+    "classifier_auc_cv3": 0.9999967608788198,
+    "weight_ess": 129.96073666024472,
+    "n_weighted": 500,
+    "max_weight_share": 0.04448644132416367
+  },
+  "metric_space": "per-domain per-bin standardised, 10 PCA comps, RBF sigma 1",
+  "heldout_basis": "[sim, real] only (P6-D33)"
+}
