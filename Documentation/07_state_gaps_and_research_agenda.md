@@ -107,7 +107,10 @@ RSNL (Kelly, TMLR 2024), MMD-regularised robust statistics (Huang, NeurIPS 2023)
 summary-space misspecification detection (Schmitt), RoPE (Wehenkel, ICML 2025), RVNP,
 flow-matching robust SBI, preconditioned RNPE. Most validate on toy simulators.
 
-**Pipeline shifts are studied, but with nested sampling, not SBI.** "Knobs and dials II"
+**Pipeline shifts are studied, but with nested sampling, not SBI.** All three papers below
+were read in full on 2026-11-22 and audited in `11_prior_work_reduction_audit.md`, which
+records what each does measure, what each leaves open, and which parts of each are verified
+verbatim rather than summarised. "Knobs and dials II"
 (Schleich et al., A&A 704 A223, 2025) ran TauREx on three WASP-39b reductions. Roy-Perez
 et al. (A&A 707 A297, 2026) compared six PRISM reductions and found that temperature,
 molecular abundances and cloud opacity all shift with the reduction, **often by more than
@@ -656,6 +659,21 @@ motivating case study, not the contribution.
 
 If an astronomy paper is also wanted, the reduction-multiverse result belongs in AJ or RASTI as a
 separate, smaller paper. Do not merge them.
+
+**AUTHORISED 2026-11-22 (P6-D34), and the venue narrows to RASTI primary, AJ secondary.** The
+three prior-work papers below were read in full first to test one gating question, whether
+anyone already benchmarks a reduction-induced spectral shift against a forward-model or
+radiative-transfer-code difference in common units. **None of the three does**, and none
+publishes a between-reduction ppm figure or states what error floor the data supports, so
+three lanes are open matching V5 / H7, A5 / H8 and A4. Full audit with verified metadata in
+`11_prior_work_reduction_audit.md`, blueprint in `12_astronomy_paper_blueprint.md`.
+Not MNRAS main, where one visit of one planet invites a generality objection.
+
+**One defect the audit exposed.** P6-D32's "6.4x to 9.5x larger than the forward-model
+difference" divides a K2-18b number by a WASP-96b number, at 51.8 ppm and 192.6 ppm error
+bars respectively. In error-bar units the gap is larger, not smaller, so the conclusion holds
+but the comparison does not. **A5 / H8 must be rerun on K2-18b before the ratio is quoted
+anywhere.** That run is the only compute left in the project.
 
 **What will not move the needle:** more CycleGAN variants, more prose about the radius degeneracy,
 more synthetic-only coverage tables.
