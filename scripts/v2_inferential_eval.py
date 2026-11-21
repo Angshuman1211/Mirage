@@ -372,8 +372,9 @@ def print_unified_table(arms_spec, mmd_map, mmd_none, synth, real) -> None:
     missing = [n for n, d, _, _ in arms_spec if not (d / "model__best.pt").exists()]
     if missing:
         print(f"  * NO TRAINED CHECKPOINT for {', '.join(missing)}. The real-WASP-39b columns")
-        print("    cannot be recomputed on this machine, so JS_NS is blocked on the arms, not")
-        print("    the anchor. Commit the model__best.pt files or rerun where they live.")
+        print("    cannot be RESAMPLED on this machine. This does not block JS_NS (P6-D35):")
+        print("    --score-ns-only reads the saved data/real_ess/v2_*_samples.npz and loads no")
+        print("    checkpoint, so it needs those npz and the anchor on one machine, nothing more.")
 
 
 def main() -> None:
