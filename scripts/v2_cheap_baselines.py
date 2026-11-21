@@ -18,6 +18,13 @@ beside the existing no-adaptation, structured-randomisation and CycleGAN rows:
 Both MMD values are printed for every arm, the no-adaptation baseline beside the
 adapted one, because a single adapted MMD means nothing on its own (V2 brief).
 
+THE MMD BASIS IS FITTED ON [sim, real] ONLY, and this is a correction (P6-D33).
+It used to be fitted on [sim, real, cyclegan, randomised], so two of the six arms
+sat inside the space all six were scored in. An arm inside the basis drags the
+retained components toward its own covariance and shrinks its own distance, which
+flattered exactly the arm V2 exists to test. `--legacy-basis` restores the old fit
+for reproducing the committed v2_baselines_seed*.json, nothing else.
+
 HELD-OUT REAL FRAMES. The new arms are FIT on real data, so they are scored only on
 real frames they never saw. Frames are split CONTIGUOUSLY in integration order,
 first half fit and second half score, for the reason inject_real_noise.py gives:
@@ -208,7 +215,8 @@ def score(arms: dict, real: np.ndarray, V: np.ndarray, n_kl: int = 200) -> dict:
     return out
 
 
-def main(oot: str | None, real_domain: str | None, n: int, seed: int, out: str) -> None:
+def main(oot: str | None, real_domain: str | None, n: int, seed: int, out: str,
+         legacy_basis: bool = False) -> None:
     if real_domain:
         real_raw, frames, note = real_from_npz(Path(real_domain))
     else:
@@ -228,6 +236,11 @@ def main(oot: str | None, real_domain: str | None, n: int, seed: int, out: str) 
     rep = real_all
     if len(rep) > n:
         rep = rep[np.random.default_rng(0).choice(len(rep), n, replace=False)]
+    # this basis keeps the published four-arm fit DELIBERATELY. Its only job is to
+    # reproduce configs/cyclegan_t1_wasp39/ablation.json, which was computed that
+    # way, so changing it here would break the one check that tells us this script
+    # reads the data as the published run did. The defect it carries is recorded in
+    # P6-D33 and corrected in the held-out protocol below, which is what V2 reports.
     comb = np.vstack([sim, rep, trans, dr])
     _, _, Vt = np.linalg.svd(comb - comb.mean(axis=0), full_matrices=False)
     V = Vt[:N_PCA].T
@@ -263,7 +276,16 @@ def main(oot: str | None, real_domain: str | None, n: int, seed: int, out: str) 
     w, wdiag = classifier_weights(sim_ref, real_fit, sim, seed)
     arms["reweight"] = (sim, w)
 
-    comb = np.vstack([sim, real_test, trans, dr])
+    # THE BASIS MUST NOT CONTAIN THE ARM UNDER TEST (P6-D33). This was fitted on
+    # [sim, real_test, trans, dr], which put `cyclegan` and `domain_random` inside
+    # the space all six arms are then scored in while `affine`, `quantile` and
+    # `reweight` stayed outside it. An arm in the basis pulls the retained
+    # components toward its own covariance and so lowers its own measured
+    # distance, so the comparison was asymmetric in the CycleGAN's favour.
+    # Fitting on [sim, real_test] alone leaves the basis fixed by the ABC test
+    # file and the real frames, so it is the same space for every arm.
+    basis = [sim, real_test, trans, dr] if legacy_basis else [sim, real_test]
+    comb = np.vstack(basis)
     _, _, Vt = np.linalg.svd(comb - comb.mean(axis=0), full_matrices=False)
     held = score(arms, real_test, Vt[:N_PCA].T)
 
@@ -300,7 +322,9 @@ def main(oot: str | None, real_domain: str | None, n: int, seed: int, out: str) 
                      "rule": "contiguous by integration_num, first half fit"},
            "reproduction_published_protocol": repro, "published": pub,
            "heldout": held, "reweight_diagnostics": wdiag,
-           "metric_space": "per-domain per-bin standardised, 10 PCA comps, RBF sigma 1"}
+           "metric_space": "per-domain per-bin standardised, 10 PCA comps, RBF sigma 1",
+           "heldout_basis": ("legacy [sim, real, cyclegan, randomised]" if legacy_basis
+                             else "[sim, real] only (P6-D33)")}
     Path(out).parent.mkdir(parents=True, exist_ok=True)
     with open(out, "w") as fh:
         json.dump(res, fh, indent=2)
@@ -315,5 +339,10 @@ if __name__ == "__main__":
     ap.add_argument("--n", type=int, default=500, help="sim and real samples per arm")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--out", default="configs/v2_baselines_wasp39/v2_baselines.json")
+    ap.add_argument("--legacy-basis", action="store_true",
+                    help="fit the held-out PCA basis on all four of "
+                         "[sim, real, cyclegan, randomised], as the pre-P6-D33 runs "
+                         "did. For reproducing the committed v2_baselines_seed*.json "
+                         "only, not for new numbers.")
     a = ap.parse_args()
-    main(a.oot, a.real_domain, a.n, a.seed, a.out)
+    main(a.oot, a.real_domain, a.n, a.seed, a.out, legacy_basis=a.legacy_basis)
