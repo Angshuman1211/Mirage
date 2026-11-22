@@ -181,7 +181,8 @@ Three lanes, each matched to work that is already run.
 
 1. **Reduction shift in spectrum space, in ppm, on a shared grid.** All three papers measure
    in posterior space. None publishes a between-reduction ppm figure. V5 / H7 (P6-D32) has
-   21 pairwise comparisons across 7 G395H reductions on a shared 60-bin grid.
+   21 pairwise comparisons across 7 G395H reductions on a shared 55-bin geomspace grid,
+   53 populated per pair (P6-D36 corrects the 60-bin figure).
 
 2. **A matched-physics radiative-transfer yardstick to divide by.** Schleich uses one code by
    design. Roy-Perez uses one code and compares against a cloud *parametrisation*. Schmidt

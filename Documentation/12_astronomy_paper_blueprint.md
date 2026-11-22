@@ -15,37 +15,33 @@ line 658, standing instruction).
 
 ---
 
-## 0. READ THIS FIRST. One defect in the headline, and the build that fixes it
+## 0. The gating run is DONE (P6-D37, 2026-11-22). Headline numbers to write to
 
-The claim as currently written in P6-D32 is that reduction choice moves the spectrum
-**6.4x to 9.5x** more than the difference between the two standard radiative transfer codes.
+A5 / H8 was rerun on K2-18b, so the ratio is now same planet, same instrument, same grid,
+same error bar. **Drafting is unblocked.** The defect this section used to describe, a K2-18b
+reduction shift divided by a WASP-96b code difference, is gone.
 
-**That ratio divides a number measured on K2-18b by a number measured on WASP-96b.**
+| | shape RMS (ppm) | vs the 50.0 ppm single-bin error |
+|---|---|---|
+| reduction choice, 21 pairs | 32.2 / **57.3** / 83.5 (min/median/max) | 0.71 / **1.11** / 1.66 |
+| opacity tables, control | **29.2** | 0.58 |
+| radiative transfer code | **2.5** (1.2 to 4.3 across 20 draws) | **0.050** |
 
-| piece | target | instrument | value | median single-bin error |
-|---|---|---|---|---|
-| reduction shape RMS, V5 / H7 | K2-18b | NIRSpec G395H | 57.3 to 84.3 ppm | 51.8 ppm |
-| code shape residual, A5 / H8 | WASP-96b | NIRISS SOSS | 8.9 ppm | 192.6 ppm |
+**The headline is 22.9x at the median, 12.9x to 33.4x across the pairs.** Conservative worst
+case, smallest reduction pair against largest code draw, still 7.5x. **Never quote 57.3 as a
+floor**, it is the median, and that error is what P6-D36 was about.
 
-Different planet, different instrument, different error bar, different wavelength range. A
-referee kills the ratio in one sentence, and they should.
+**The three-level ordering is the paper's best sentence and it is new.** A deliberately crude
+opacity downgrade moves the spectrum only half as much as changing which team reduced the same
+photons. Reduction is 2.0x the line-list swap and 22.9x the code choice. Lead section 5 on it.
 
-**In error-bar units the gap is actually larger**, 1.10 to 1.66 sigma against 0.046 sigma, so
-about 24x to 36x. The conclusion survives either way. The *comparison* does not.
+Supporting facts worth stating in the text. Matched-physics check, worst mean-molecular-weight
+disagreement 1.66e-07 relative. Grid robustness, the same comparison on the observation's own
+149-bin 0.852 to 5.174 um grid gives 2.3 ppm against 2.5 ppm, so the result is not a binning
+artifact. Code-swap offset -3.3 ppm, equivalent radius shift -0.00013 RJ.
 
-**THE ONE BUILD THIS PAPER NEEDS: run A5 / H8 on K2-18b.** The machinery exists and is
-target-agnostic in shape, `scripts/h8_dump_atmosphere.py` then `scripts/h8_prt_forward.py`
-then `scripts/h8_compare.py`, with `h8_control.py` for the line-list-only control. Dump
-TauREx's own atmosphere for a K2-18b posterior draw, integrate petitRADTRANS through those
-exact arrays, bin with TauREx's own `FluxBinner`, and report the offset and shape residual on
-the same 60-bin 2.80 to 5.10 um grid V5 / H7 uses.
-
-Then the ratio is same-planet, same-instrument, same grid, same error bar, and the paper has a
-spine. Until that run exists, this paper should not be drafted.
-
-Second-order but worth fixing while in there: `configs/v5_k218_h7/spectral_shift.json` records
-`canonical_dir` as `data\v5_k218\canonical` with Windows separators, which will not resolve on
-anyone else's machine.
+Still worth fixing while in there, `configs/v5_k218_h7/spectral_shift.json` records
+`canonical_dir` as `data\v5_k218\canonical` with Windows separators.
 
 ---
 
@@ -90,7 +86,8 @@ which is Schmidt's territory and invites the comparison you will lose on scale.
   (exoTEDRF, Eureka!, SPARTA). Cite the Zenodo records with DOIs, 14735689 and 15685551, and
   resolve both before submission.
 - Say that both teams reduced the same photon stream. This is the whole design.
-- The shared 60-bin grid, 2.80 to 5.10 um, and the NIRISS baseline treatment below 2.75 um.
+- The shared grid, 55 log-spaced bins over 2.80 to 5.10 um with 53 populated per pair, and the
+  NIRISS baseline treatment below 2.75 um.
 - Resolution differences between the R100 and R200 sets and how they are reconciled onto the
   shared grid. A referee will ask whether the shared-grid interpolation itself creates shift.
   **Pre-empt it with a null test**: interpolate one reduction onto the grid by two different
@@ -99,15 +96,21 @@ which is Schmidt's territory and invites the comparison you will lose on scale.
 ## 4. Result 1, reduction shift in spectrum space
 
 - The 21 pairwise comparisons. Offsets and shape RMS, in ppm and in units of the median
-  single-bin error (51.8 ppm), both.
+  single-bin error (50.0 ppm across pairs), both. Quote the full spread, 32.2 to 83.5 ppm with
+  a median of 57.3, not the median as if it were a floor.
 - Lead with the structure, not the offset. A constant offset is partly absorbable by a fitted
   nuisance offset, which Schmidt already fits with a -100 to +100 ppm prior. **Shape RMS is
-  the part that cannot be absorbed**, and it is 57.3 to 84.3 ppm, at or above one error bar.
-  Say this explicitly, because it is what makes the result matter rather than being a
-  calibration offset anyone already handles.
-- The cross-team pair (Schmidt exoTEDRF vs Luque Eureka!, 42.3 ppm, 60.0 ppm) carries more
-  weight than the within-team pairs. Two independent groups, same data. Promote it.
-- The exoTEDRF-sits-above-Eureka! pattern holding across both teams, since a reproducible
+  the part that cannot be absorbed**, and its median across the 21 pairs is 57.3 ppm, 1.11
+  times the single-bin error, with **16 of 21** pairs at or above one error bar. Say it that way
+  rather than as a bare range, because a referee who sees a 32.2 ppm minimum quoted as 57.3
+  will check the rest of the paper twice.
+- **The cross-team pairs carry more weight than the within-team pairs, and they now carry the
+  headline.** The single largest shape disagreement in the whole set is Schmidt exoTEDRF
+  against Luque SPARTA at 83.5 ppm and 1.66 sigma, and Schmidt exoTEDRF against Luque Eureka!
+  is 45.9 ppm offset and 74.4 ppm shape. Two independent groups, same photon stream, worse
+  than anything within a team. This is a stronger result than what P6-D32 originally published.
+- The exoTEDRF-sits-deeper-than-Eureka! pattern, which holds in **all six** such pairs,
+  +46.3, +41.5, +45.9, +36.3, and -36.8 and -31.9 with the ordering reversed. A reproducible
   sign is stronger than a scatter.
 - Table of all 21 pairs goes in an appendix. Main text gets the eight-row summary already in
   P6-D32 plus the max and median.
@@ -122,12 +125,16 @@ which is Schmidt's territory and invites the comparison you will lose on scale.
   inside each opacity file, not the filename.
 - State why each of those matters in one clause. The reader must understand that the only
   remaining difference is the radiative transfer and the opacity treatment.
-- The line-list-only control moving the spectrum 4.9x more on shape. **This is what makes the
-  null a measurement rather than a blind spot** and it is the most referee-proof sentence in
-  the paper. Do not bury it.
-- The K2-18b numbers from the new run. Quote the WASP-96b numbers (12.9 ppm offset, 8.9 ppm
-  shape, 0.067 and 0.046 error bars) as a second target, which strengthens rather than
-  weakens once the K2-18b run exists.
+- **Lead on the three-level ordering**, reduction 57.3 ppm against line list 29.2 ppm against
+  code 2.5 ppm, all on one grid with one error bar. It isolates one factor at a time, which no
+  prior paper does, and it is the cleanest form of the thesis.
+- The line-list-only control moving the spectrum **11.7x** more on shape than the code swap.
+  **This is what makes the null a measurement rather than a blind spot.** Do not bury it. Note
+  the equivalent figure on WASP-96b was 4.9x, so the sensitivity check is stronger here.
+- The K2-18b numbers, offset -3.3 ppm and shape 2.5 ppm at the posterior mean, 1.2 to 4.3 ppm
+  across 20 draws. Quote the WASP-96b numbers (12.9 ppm offset, 8.9 ppm shape) as a second
+  target. The two differ by roughly 3x on shape, which is expected from the scale-height
+  difference and is worth one clause rather than hiding.
 - Concede that Schmidt reports code-choice robustness qualitatively and say that this
   quantifies it. Cite their "robust to the choice of retrieval code" verbatim.
 
@@ -173,16 +180,36 @@ Answer each in a named paragraph rather than waiting for review.
 
 ## 8. Figures
 
-- Fig 1, the seven reductions on the shared grid with the reference residuals. Exists in
-  substance, needs rebuilding at publication resolution.
-- Fig 2, offset and shape RMS for all 21 pairs, in error-bar units, with the cross-team pairs
-  marked distinctly.
-- Fig 3, the code comparison. TauREx against petitRADTRANS residual with the line-list-only
-  control overplotted, same axes as Fig 2 so the reader sees the ratio without arithmetic.
-  **This is the paper's one figure.** Build it to carry the argument alone.
-- Fig 4, the floor sweep. `figures/fig_a4_floor.png` exists, 2026-11-16.
-- Carry forward the v1 figure lesson from P5-D7 and the T46u note. Fonts enlarged, dpi at
-  least 200, one shared legend rather than per-panel legends overlapping data.
+**Three of four are built (P6-D38). Every number in them is read from the committed
+artifacts at plot time, never typed into the script.** That rule caught two wrong numbers
+already, so keep it.
+
+- **Fig 1, BLOCKED and the only one.** The seven reductions on the shared grid with reference
+  residuals. Needs `data/v5_k218/canonical`, which is not on this machine. It is on Vedanth's.
+  **Add the canonical CSVs to the P6-D35 file exchange.**
+- **Fig 2, built** → `figures/fig_v5h7_pairs.png`, script `scripts/fig_v5h7_pairs.py`. All 21
+  pairs, shape and offset in error-bar units, cross-team pairs coloured distinctly so the
+  worst pair being cross-team reads without the caption. All 21 rather than a selected 8,
+  which is the direct remedy for P6-D36.
+- **Fig 3, built, and it is the paper's one figure** → `figures/fig_h8_three_level.png`,
+  script `scripts/fig_h8_three_level.py`. Left, offset-removed residual against wavelength
+  with the reduction envelope behind it, so the code trace sits visibly flat inside a band it
+  is 23x smaller than. Right, the three levels as one ordering, 1.105 against 0.58 against
+  0.050 sigma. It carries the argument alone, which was the requirement.
+- **Fig 4, rebuilt** → `figures/fig_a4_floor.png`. Its title had read "4 to 7 times what the
+  data supports" since 2026-11-16. The crossings are 0.67 to 1.37 percent, so it is
+  **3.7 to 7.5**, and rounding 3.66 up to 4 moved the lower bound in our own favour. Now
+  computed from the sweep.
+
+**One consistency trap, not an error.** The reduction sigma must come from the JSON's own
+per-pair `shape_rms_over_err`, median **1.105**, never from median shape divided by median
+error, which gives 1.15. Each pair carries its own error bar, so the median of the ratios is
+not the ratio of the medians.
+
+**Layout, from P5-D7 and the T46u note.** dpi 200, one shared legend rather than per-panel
+legends over data, top and right spines off, annotations in opaque boxes. Render and look at
+every figure rather than assuming, which is how the clipped titles and a legend covering two
+bars were caught.
 
 ## 9. Authorship and sequencing
 
@@ -190,12 +217,12 @@ Answer each in a named paragraph rather than waiting for review.
   author order before drafting, not after.
 - Pulling V5 / H7 out does **not** damage the v2 manuscript. Track 2's share there rests on
   V7, V2 and V6 (`08_work_split_v2.md`, "What Track 2 owns in the manuscript").
-- Everything except the K2-18b pRT run is already computed, so this is a writing project with
-  one bounded build in front of it.
+- **Everything is computed.** The K2-18b pRT run closed 2026-11-22 (P6-D37). This is now a
+  pure writing project with no build in front of it.
 
 ## 10. Order of operations
 
-1. Run A5 / H8 on K2-18b. Nothing else starts until the ratio is same-target.
+1. ~~Run A5 / H8 on K2-18b.~~ **Done 2026-11-22, P6-D37.**
 2. Re-verify the two Zenodo DOIs and the Schmidt citation once AJ assigns a volume.
 3. Re-read Roy-Perez Sections 4.2 to 5 properly. Only the front half is verified, and the
    back half is where their cloud-parametrisation comparison lives, which is the claim this

@@ -376,7 +376,7 @@ data-handling pipeline, the translation study, and related work.
 | item | what | status |
 |---|---|---|
 | V2 | Cheap baselines any learned translator must beat | **done** (P6-D13, P6-D31). Quantile mapping reaches nominal coverage with 6% sharper posteriors while the CycleGAN undercovers and collapses log-density. Closes G8. The MMD column is inherited from P6-D13 and carries the basis defect below, so it needs regenerating; the coverage headline does not |
-| V5 | Tier-2 verification, multiple reductions of one visit | **done** (P6-D14, P6-D32). Reduction choice induces 36 to 46 ppm offsets and 57 to 84 ppm shape RMS on K2-18b, 1.06 to 1.66σ, which is **6.4x to 9.5x larger than the TauREx-to-petitRADTRANS forward-model difference** (8.9 ppm shape RMS, P6-D19) |
+| V5 | Tier-2 verification, multiple reductions of one visit | **done** (P6-D14, P6-D32, numbers corrected P6-D36). Reduction choice induces up to 46 ppm offsets and **32 to 84 ppm shape RMS** on K2-18b across 21 pairs, 0.71 to 1.66σ with a median of 1.11σ. The ratio against the TauREx-to-petitRADTRANS difference is **held back as cross-target** (P6-D34) until A5 / H8 reruns on K2-18b |
 | V6 | Related work, and relabel the old ablation script | **done** |
 | V7 | Rebuild the CycleGAN real side on all three spectra | **done** (P6-D29). The null **holds**: the pooled translator is 3.71x to 3.92x worse than domain randomisation on the clean basis. Replicated by an independent second run at 3.25x to 3.72x (P6-D33, `configs/cyclegan_v7_pooled3_run2/`). Closes G8b |
 | V3 | H1 as a mechanism check | **done** (P6-D30). Restricting domain A does **not** collapse the mean shift, 0.240 against 0.308, still 7x to 8x above unadapted sim. H1 refuted and struck. Closes G7 |
@@ -419,10 +419,13 @@ radiative-transfer-code difference, publishes a between-reduction ppm figure, or
 error floor the data supports. Target RASTI, blueprint in
 [12_astronomy_paper_blueprint.md](Documentation/12_astronomy_paper_blueprint.md).
 
-**The one run left.** A5 / H8 on K2-18b. The published "6.4x to 9.5x" ratio divides a K2-18b
-reduction shift by a WASP-96b code difference, at 51.8 ppm against 192.6 ppm error bars. In
-error-bar units the gap is larger rather than smaller, so the conclusion survives, but the
-ratio is not quotable until the yardstick sits on the same target.
+**No runs left. All compute in the project is complete** as of 2026-11-22 (P6-D37). A5 / H8
+was rerun on K2-18b, so the reduction-versus-forward-model ratio is finally same planet, same
+instrument, same grid, same error bar. It is **22.9x at the median, 12.9x to 33.4x across the
+21 reduction pairs**, replacing the "6.4x to 9.5x" that was both cross-target (P6-D34) and
+median-to-max off a stale table (P6-D36). A three-level ordering comes with it, reduction
+57.3 ppm against an opacity-table swap at 29.2 ppm against the code choice at 2.5 ppm, all on
+one grid with one error bar.
 
 arXiv v2 goes last, by decision (P6-D10).
 

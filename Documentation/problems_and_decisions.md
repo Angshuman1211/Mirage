@@ -1774,7 +1774,7 @@ Cycle-consistency error: `0.5430` (indicating generator distortion).
 
 ---
 
-### P6-D32 — V5 / H7 multi-reduction pipeline shift on K2-18b: pipeline reduction choices induce 36 to 46 ppm systematic offsets and 57 to 84 ppm shape RMS (1.06–1.66σ), exceeding simulator mismatch by 6x to 9x [Phase 6, 2026-11-18, Track 2]
+### P6-D32 — V5 / H7 multi-reduction pipeline shift on K2-18b: reduction choice induces up to 46 ppm systematic offsets and 32 to 84 ppm shape RMS (0.71–1.66σ) across 21 pairs [Phase 6, 2026-11-18, Track 2, TABLE AND HEADLINE CORRECTED 2026-11-22 — see P6-D36]
 
 **The question (H7).** Does posterior JS between two independent reductions of the exact same JWST transit visit exceed the JS change from noise-model conditioning interventions (0.083 nats, P6-D2 / P6-D26)? If reduction pipeline choices dominate astrophysical noise modeling, the field is tuning the wrong lever.
 
@@ -1782,30 +1782,48 @@ Cycle-consistency error: `0.5430` (indicating generator distortion).
 1. **Schmidt et al. (2025, Zenodo 14735689):** 4 independent R100 reductions of the JWST NIRSpec G395H transit of K2-18b (exoTEDRF, Eureka! Ahrer, Eureka! Bell, FIREFLy) and 2 independent NIRISS SOSS reductions (exoTEDRF, FIREFLy).
 2. **Luque et al. (2025, Zenodo 15685551):** 3 independent R200 reductions of the same NIRSpec G395H transit (exoTEDRF, Eureka!, SPARTA) and NIRISS SOSS (exoTEDRF).
 
-**The measurement.** `scripts/v5_h7_pipeline_shift.py --spectral`, summary in `configs/v5_k218_h7/spectral_shift.json`. All 21 pairwise comparisons were measured across the 7 G395H reductions on a shared 60-bin grid (2.80–5.10 µm) with identical NIRISS baseline (<2.75 µm).
+**The measurement.** `scripts/v5_h7_pipeline_shift.py --spectral`, summary in `configs/v5_k218_h7/spectral_shift.json`. All 21 pairwise comparisons were measured across the 7 G395H reductions on a shared grid built analytically at `v5_h7_pipeline_shift.py:203` as `np.geomspace(2.80, 5.10, 56)`, so **55 log-spaced bins over 2.80 to 5.10 µm, of which 53 are populated in every pair**, with the identical NIRISS baseline (<2.75 µm) attached to each.
+
+**CORRECTED 2026-11-22 against the committed JSON. Read the correction note at the end of this entry before quoting any number here.** The table and summary below are now rebuilt from `configs/v5_k218_h7/spectral_shift.json`, which with `scripts/v5_h7_pipeline_shift.py` landed in commit `2598c43` on 2026-11-21, three days after this entry was first written. The original table quoted an earlier run on 59 and 60-bin grids that no committed artifact reproduces.
+
+All 21 pairs, sorted by shape RMS.
 
 | Comparison | n_bins | Offset (ppm) | Offset (σ) | Shape RMS (ppm) | Shape RMS (σ) | Pair χ²/N (raw) | Pair χ²/N (offset rem) |
 |---|---|---|---|---|---|---|---|
-| **Schmidt exoTEDRF vs Eureka! (Ahrer)** | 53 | +46.3 | 0.89 | 57.3 | 1.10 | 0.79 | 0.52 |
-| **Schmidt exoTEDRF vs Eureka! (Bell)** | 53 | +41.5 | 0.79 | 60.8 | 1.16 | 0.80 | 0.58 |
-| **Schmidt exoTEDRF vs FIREFLy** | 53 | +2.5 | 0.05 | 57.3 | 1.03 | 0.42 | 0.42 |
-| **Schmidt Eureka! (Ahrer) vs FIREFLy** | 53 | -43.8 | 0.85 | 60.7 | 1.17 | 0.78 | 0.53 |
-| **Luque exoTEDRF vs Eureka!** | 60 | +36.1 | 0.75 | 58.7 | 1.23 | 0.70 | 0.45 |
-| **Luque exoTEDRF vs SPARTA** | 59 | -24.0 | 0.47 | 84.3 | 1.66 | 0.94 | 0.86 |
-| **Luque Eureka! vs SPARTA** | 59 | -60.1 | 1.25 | 62.4 | 1.30 | 0.89 | 0.47 |
-| **Cross-paper: Schmidt exoTEDRF vs Luque Eureka!** | 60 | +42.3 | 0.82 | 60.0 | 1.16 | 0.81 | 0.54 |
+| Schmidt exoTEDRF vs Luque SPARTA **[cross-team]** | 53 | +19.4 | 0.39 | 83.5 | 1.66 | 0.97 | 0.95 |
+| Schmidt exoTEDRF vs Luque Eureka! **[cross-team]** | 53 | +45.9 | 0.91 | 74.4 | 1.47 | 1.06 | 0.85 |
+| Luque exoTEDRF vs Luque Eureka! | 53 | +36.3 | 0.75 | 63.0 | 1.29 | 0.79 | 0.69 |
+| Schmidt Eureka! (Ahrer) vs Luque SPARTA **[cross-team]** | 53 | -26.9 | 0.61 | 62.7 | 1.43 | 0.70 | 0.53 |
+| Schmidt exoTEDRF vs Schmidt Eureka! (Bell) | 53 | +41.5 | 0.79 | 60.8 | 1.16 | 0.80 | 0.58 |
+| Schmidt exoTEDRF vs Luque exoTEDRF **[cross-team]** | 53 | +9.6 | 0.17 | 60.3 | 1.06 | 0.46 | 0.46 |
+| Luque exoTEDRF vs Luque SPARTA | 53 | +9.8 | 0.20 | 60.2 | 1.25 | 0.64 | 0.64 |
+| Schmidt Eureka! (Bell) vs Luque exoTEDRF **[cross-team]** | 53 | -31.9 | 0.63 | 59.4 | 1.18 | 0.70 | 0.57 |
+| Schmidt Eureka! (Ahrer) vs Luque exoTEDRF **[cross-team]** | 53 | -36.8 | 0.73 | 59.4 | 1.19 | 0.67 | 0.50 |
+| Schmidt exoTEDRF vs Schmidt FIREFLy | 53 | +2.5 | 0.05 | 57.3 | 1.03 | 0.42 | 0.42 |
+| Schmidt exoTEDRF vs Schmidt Eureka! (Ahrer) | 53 | +46.3 | 0.89 | 57.3 | 1.10 | 0.79 | 0.52 |
+| Schmidt FIREFLy vs Luque SPARTA **[cross-team]** | 53 | +16.9 | 0.36 | 54.5 | 1.15 | 0.53 | 0.48 |
+| Schmidt FIREFLy vs Luque exoTEDRF **[cross-team]** | 53 | +7.0 | 0.13 | 54.2 | 1.00 | 0.46 | 0.44 |
+| Schmidt Eureka! (Bell) vs Luque SPARTA **[cross-team]** | 53 | -22.1 | 0.51 | 52.0 | 1.19 | 0.58 | 0.46 |
+| Luque Eureka! vs Luque SPARTA | 53 | -26.5 | 0.61 | 46.8 | 1.08 | 0.50 | 0.37 |
+| Schmidt Eureka! (Ahrer) vs Luque Eureka! **[cross-team]** | 53 | -0.4 | 0.01 | 46.5 | 1.05 | 0.33 | 0.33 |
+| Schmidt Eureka! (Ahrer) vs Schmidt FIREFLy | 53 | -43.8 | 0.87 | 45.3 | 0.90 | 0.68 | 0.31 |
+| Schmidt FIREFLy vs Luque Eureka! **[cross-team]** | 53 | +43.4 | 0.87 | 44.9 | 0.90 | 0.68 | 0.37 |
+| Schmidt Eureka! (Bell) vs Schmidt FIREFLy | 53 | -39.0 | 0.78 | 39.5 | 0.79 | 0.55 | 0.27 |
+| Schmidt Eureka! (Bell) vs Luque Eureka! **[cross-team]** | 53 | +4.4 | 0.10 | 33.1 | 0.75 | 0.23 | 0.23 |
+| Schmidt Eureka! (Ahrer) vs Schmidt Eureka! (Bell) | 53 | -4.8 | 0.11 | 32.2 | 0.71 | 0.14 | 0.13 |
 
-**Summary statistics across all 21 pairs:**
-- **Maximum pipeline offset:** **46.3 ppm** (`0.89σ` of the single-bin error). An exoTEDRF reduction sits systematically ~40–46 ppm higher than an Eureka! reduction of the exact same photon stream across both independent teams.
-- **Maximum shape RMS:** **84.3 ppm** (`1.66σ` of single-bin error).
-- **Median shape RMS:** **1.07σ**. Pipeline-to-pipeline scatter is on the order of the full observational error bar per bin.
+**Summary statistics across all 21 pairs, from the JSON.**
+- **Maximum pipeline offset:** **46.3 ppm** (`0.91σ` of the single-bin error), Schmidt exoTEDRF against Schmidt Eureka! (Ahrer).
+- **Shape RMS spans 32.2 to 83.5 ppm, median 57.3 ppm.** In units of the median single-bin error that is **0.71σ to 1.66σ, median 1.105σ**. Pipeline-to-pipeline scatter is on the order of the full observational error bar per bin.
+- **The largest shape disagreement is a cross-team pair**, Schmidt exoTEDRF against Luque SPARTA at 83.5 ppm and 1.66σ. Two independent groups reducing the same photon stream disagree more than any within-team pair, which is the stronger form of the result.
+- **exoTEDRF sits systematically deeper than Eureka! in all six exoTEDRF-against-Eureka! pairs**, +46.3, +41.5, +45.9, +36.3, and -36.8 and -31.9 with the ordering reversed. A reproducible sign across both teams is worth more than the scatter.
 
-**Comparison against forward-model misspecification:**
-- P6-D1 measured the spectral difference between TauREx and petitRADTRANS forward models on the identical physical atmospheric state: shape RMS was **8.9 ppm**.
-- Pipeline reduction choices on the same telescope data introduce **57.3 to 84.3 ppm of shape distortion**.
-- **Pipeline choice is 6.4x to 9.5x larger than the difference between the two standard exoplanet atmospheric radiative transfer codes.**
+**Comparison against forward-model misspecification, and it is NOT yet a valid comparison.**
+- P6-D1 measured the spectral difference between TauREx and petitRADTRANS on the identical physical atmospheric state, shape RMS **8.9 ppm**. **That number is WASP-96b NIRISS SOSS, while everything above is K2-18b NIRSpec G395H** (P6-D34).
+- Dividing anyway gives 3.6x to 9.4x with a median of 6.4x, and in error-bar units 15x to 36x with a median of 24x. **Neither range may be quoted until A5 / H8 is rerun on K2-18b** (P6-D34, decision 1).
+- The originally published "**6.4x to 9.5x**" was median-to-max rather than min-to-max, built on a shape range of 57.3 to 84.3 ppm in which 57.3 was the median and 84.3 appears nowhere in the committed JSON.
 
-**Conclusion.** Data reduction systematics in JWST transmission spectroscopy are first-order effects, on par with the 1σ observational uncertainties, and dwarf forward-model simulator discrepancies. Tuning neural posterior estimators or domain adaptation architectures to sub-percent precision on a single reduction is misspecified when the reduction itself shifts by nearly 1σ in mean depth and 1–1.6σ in spectral shape.
+**Conclusion.** Data reduction systematics in JWST transmission spectroscopy are first-order effects, on par with the 1σ observational uncertainties. Tuning neural posterior estimators or domain adaptation architectures to sub-percent precision on a single reduction is misspecified when the reduction itself shifts by up to 0.91σ in mean depth and 0.71 to 1.66σ in spectral shape, median 1.11σ. **The claim that this dwarfs forward-model discrepancy is held back pending the matched-target A5 / H8 run** (P6-D34).
 
 ---
 
@@ -1911,3 +1929,92 @@ The result is that **P6-D31's MMD column barely moves**. Only `struct_rand_cov` 
 **A correction to carry.** P6-D31's footnote and the `missing` warning printed by `v2_inferential_eval.py` both name the uncommitted arm checkpoints at `configs/v2_{quantile,affine,reweight}_cov/` as the real blocker on the real-WASP-39b columns. That is right for **regenerating** draws from scratch and wrong as a description of what blocks JS_NS, because the draws already exist and `--score-ns-only` never loads a checkpoint. The checkpoints block reproduction, not this column.
 
 **Second instance of the same defect.** Windows path separators have now leaked into two committed JSONs, `configs/v2_baselines_wasp39/v2_inferential.json` here and `configs/v5_k218_h7/spectral_shift.json` in P6-D34. Worth a single normalisation pass rather than two one-off fixes.
+
+---
+
+### P6-D36 — P6-D32's table was stale against its own committed JSON, the grid is 53 bins not 60, and the quoted shape range was median-to-a-value-that-does-not-exist [Phase 6, 2026-11-22, MAJOR — corrects the astronomy paper's lead numbers before drafting]
+
+**How this surfaced.** Setting up the A5 / H8 K2-18b run that P6-D34 made gating, the first step was to find the grid to report on. `Documentation/12_astronomy_paper_blueprint.md` said the 60-bin 2.80 to 5.10 µm grid, taken from P6-D32. The code says otherwise, and so does the artifact.
+
+**Finding 1, the grid.** `scripts/v5_h7_pipeline_shift.py:203` builds `np.geomspace(2.80, 5.10, 56)`, which is **55 log-spaced bins**, of which **53 are populated in all 21 pairs**. Every pair in `configs/v5_k218_h7/spectral_shift.json` carries `n_bins: 53` and no other value. The **60** comes from two places, neither of them the G395H grid. The script's own docstring at line 17 says "shared 60-bin G395H grid", contradicting line 203 seventeen lines below it, and the NIRISS grid at line 230 is `np.geomspace(0.85, 2.75, 61)`, genuinely 60 bins, which is also the lone entry in `pairs_niriss`. The docstring error propagated into P6-D32 and from there into the blueprint.
+
+**Finding 2, and the serious one. Five of the eight rows in P6-D32's table are not reproducible from the committed JSON.** The first three match to the digit. The rest do not, and they carry `n_bins` of 59 and 60, values that do not occur anywhere in the artifact.
+
+| P6-D32 row | its numbers | the JSON |
+|---|---|---|
+| Schmidt Eureka! (Ahrer) vs FIREFLy | 53, -43.8, 60.7, 1.17 | -43.8 but shape **45.3**, 0.90 |
+| Luque exoTEDRF vs Eureka! | **60**, +36.1, 58.7, 1.23 | 53, +36.3, **63.0**, 1.30 |
+| Luque exoTEDRF vs SPARTA | **59**, -24.0, 84.3, 1.66 | 53, **+9.8**, **60.2**, 1.25 |
+| Luque Eureka! vs SPARTA | **59**, -60.1, 62.4, 1.30 | 53, **-26.5**, **46.8**, 1.08 |
+| Cross-paper Schmidt exoTEDRF vs Luque Eureka! | **60**, +42.3, 60.0, 1.16 | 53, **+45.9**, **74.4**, 1.47 |
+
+**Cause, and it is not fabrication.** `git log` puts both `scripts/v5_h7_pipeline_shift.py` and `configs/v5_k218_h7/spectral_shift.json` in a single commit `2598c43` dated **2026-11-21**, three days after this entry was written on 2026-11-18. The entry recorded an earlier run on a pre-unified grid, the grid was then unified to the 55-bin geomspace, and the entry was never rebuilt against the regenerated artifact. Same failure mode as P6-D29, where the N56 rows had to be rebuilt from their own JSONs.
+
+**Finding 3, the headline range was not a range.** "57.3 to 84.3 ppm of shape distortion" reads as a min-to-max across the 21 pairs. **57.3 is the median.** The true minimum is **32.2 ppm**. And **84.3 appears nowhere in the committed JSON**, whose maximum is **83.5 ppm**, belonging to a different pair than the one the table attached it to. The same applies to the σ figures, where the published "1.10 to 1.66σ" is again median-to-max against a true spread of **0.710 to 1.662σ**. "Median shape RMS 1.07σ" is also wrong, the JSON's own `all7_median_shape_rms_over_err` being **1.105**.
+
+**Consequence for the ratio.** "6.4x to 9.5x larger than the forward-model difference" was median-to-max, not min-to-max, and built on a maximum that does not exist. Against the 8.9 ppm WASP-96b residual the honest arithmetic is **3.6x to 9.4x, median 6.4x**, and in error-bar units **15x to 36x, median 24x**. All of it still cross-target per P6-D34, so none of it is quotable until A5 / H8 runs on K2-18b.
+
+**What survives, and one thing is stronger than published.** The reproducible sign holds. **exoTEDRF sits deeper than Eureka! in all six exoTEDRF-against-Eureka! pairs**, +46.3, +41.5, +45.9, +36.3, -36.8 and -31.9 with the ordering reversed. And **the largest shape disagreement in the whole set is a cross-team pair**, Schmidt exoTEDRF against Luque SPARTA at 83.5 ppm and 1.662σ, which is a better result than a within-team maximum because it is two independent groups on the same photon stream.
+
+**Decision.** P6-D32's table, summary statistics, heading and conclusion are rebuilt in place from the JSON, with all 21 pairs listed rather than a selected 8 so the next reader cannot be misled by a subset. The blueprint is corrected to 53 bins and to the real ranges. **Rule carried forward: a decision entry that quotes numbers must be rebuilt whenever the artifact behind it is regenerated, and the entry should name the commit the artifact came from.** This is the third time numbers in the log have drifted from their own JSONs.
+
+**Not blocking the run.** The grid is analytic, so `np.geomspace(2.80, 5.10, 56)` reproduces it exactly without `data/v5_k218/canonical`, which does not exist on this machine.
+
+---
+
+### P6-D37 — A5 / H8 rerun on K2-18b closes the gating run: the matched-target ratio is 22.9x at the median, the line-list control moves the spectrum 11.7x more than the code swap, and a three-level ordering falls out [Phase 6, 2026-11-22, MAJOR — this is the astronomy paper's spine, and the last compute in the project]
+
+**Why this ran.** P6-D34 found the published reduction-versus-forward-model ratio divided a K2-18b number by a WASP-96b number, and P6-D36 found the K2-18b side was additionally median-to-max off a stale table. Both defects are fixed by one thing, measuring the code difference on the same target, instrument, grid and error bar as the reduction difference.
+
+**What ran.** `h8_dump_atmosphere.py --planet k218 --post data/real_ess/wasp39b_ns_posterior_k218.npz --obs data/real_ess/k218cov_samples.npz`, then `h8_prt_forward.py --wl-lo 0.80 --wl-hi 5.30`, then `h8_compare.py --grid g395h --ref-err-ppm 50.01`. 21 spectra, the posterior weighted mean plus 20 weighted draws from the 2,150-sample K2-18b anchor. Three small script changes were needed and all three are non-breaking defaults. The dump gained `--obs`, because K2-18b's observation file is `k218cov_samples.npz` and the old code hardcoded `{planet}_samples.npz`. `h8_compare.py` and `h8_control.py` gained `--grid g395h`, which rebuilds V5 / H7's grid analytically as `np.geomspace(2.80, 5.10, 56)` so the two sides land on the same bins without needing `data/v5_k218/canonical`, which is not on this machine, plus `--ref-err-ppm` so the denominator is V5 / H7's own 50.01 ppm rather than one rederived from a different observation file. The WASP-96b-specific A5 radius-width block is now printed only for WASP-96b.
+
+**Matched physics confirmed before trusting any of it.** Worst mean-molecular-weight disagreement between the TauREx atmosphere and what pRT integrated is **1.66e-07 relative**, the same order as the 1.1e-07 on WASP-96b. pRT did not rebuild the atmosphere, it integrated TauREx's own pressure, temperature, per-gas VMR and mean-molecular-weight arrays with TauREx's reference radius, gravity and pressure triple, and both sides were binned with TauREx's own `FluxBinner`.
+
+**THE RESULT. TauREx against petitRADTRANS on K2-18b, G395H, 55 bins over 2.815 to 5.072 µm.**
+
+| | offset (ppm) | shape RMS (ppm) | in units of the 50.0 ppm error bar | dRp (RJ) |
+|---|---|---|---|---|
+| **posterior mean** | **-3.3** | **2.5** | 0.067 and **0.050** | -0.00013 |
+| across 20 draws | -5.0 to -2.5 | 1.2 to 4.3 | | -0.00020 to -0.00010 |
+
+**Not a grid artifact.** The same comparison on the observation's own 149-bin 0.852 to 5.174 µm grid gives -2.8 ppm offset and **2.3 ppm** shape, with χ²/N of 1.399 for TauREx and 1.360 for pRT. Two grids, same answer.
+
+**THE MATCHED RATIO, finally same planet, same instrument, same grid, same error bar.** Reduction shape RMS across the 21 pairs is 32.2 / 57.3 / 83.5 ppm as min / median / max (P6-D36). Against the 2.5 ppm posterior-mean code residual that is **12.9x to 33.4x, with a median of 22.9x**. In error-bar units, where both sides share the 50.0 ppm denominator by construction, it is 14.2x to 33.2x with a median of 22.1x, which agrees as it must. **The conservative worst case, the smallest reduction pair against the largest code draw, is still 7.5x.** Quote the median and the span, never the median as if it were a floor.
+
+**THE CONTROL, and it is stronger here than on WASP-96b.** Swapping only the opacity data, ExoTransmit R~1000 against ExoMolOP R=15000, same code and same atmosphere, moves the spectrum by -37.0 ppm offset and **29.2 ppm shape**, which is **11.7x the code swap** on shape and 11.2x on offset. On WASP-96b that ratio was 4.9x. The measurement is therefore demonstrably able to see an opacity-level change an order of magnitude above what it reports for the code swap, so the 2.5 ppm is an agreement rather than a blind spot, and running H8 with `--hifi` was load-bearing.
+
+**A THREE-LEVEL ORDERING FALLS OUT, all on one grid with one error bar, and this is new.**
+
+| what changes | shape RMS (ppm) | vs the error bar |
+|---|---|---|
+| who reduced the data | **57.3** (median of 21 pairs) | 1.11σ |
+| which opacity tables | **29.2** | 0.58σ |
+| which radiative transfer code | **2.5** | 0.050σ |
+
+Reduction choice is 2.0x the line-list swap and 22.9x the code choice. **A deliberately crude opacity downgrade moves the spectrum only half as much as changing which team reduced the same photons.** That is a cleaner statement of the paper's thesis than the original ratio, and it answers the Schmidt CH4-significance attack logged in P6-D34 directly, because it is in spectral distance rather than detection significance and it isolates one factor at a time.
+
+**Decision.** The gating run of P6-D34 is closed. `Documentation/12_astronomy_paper_blueprint.md` section 0 no longer blocks drafting. The headline is **22.9x median, 12.9x to 33.4x**, and the three-level table is promoted to a main-text result rather than a control buried in section 5. **ALL COMPUTE IN THE PROJECT IS NOW COMPLETE.**
+
+**Artifacts.** `data/h8/taurex_dump_k218.npz`, `data/h8/taurex_dump_k218_published.npz`, `data/h8/prt_spectra_k218.npz`, logs beside them. All under `data/*` so all gitignored, and all belong in `zenodo_deposit/` with the P6-D35 files.
+
+---
+
+### P6-D38 — three of the astronomy paper's four figures are built, every number in them is read from the committed artifacts, and doing that caught two more wrong numbers [Phase 6, 2026-11-22]
+
+**Built.** `figures/fig_h8_three_level.png` from `scripts/fig_h8_three_level.py`, and `figures/fig_v5h7_pairs.png` from `scripts/fig_v5h7_pairs.py`. `figures/fig_a4_floor.png` regenerated from its existing script with one correction. A helper `scripts/h8_residuals_for_fig.py` bins the H8 residuals once in `mirage-taurex`, because matplotlib is absent there and `FluxBinner` is absent in `mirage`, so the binning and the plotting cannot share an interpreter. It reproduces the analysis exactly, -3.3 and 2.5 ppm for the code swap, -37.0 and 29.2 for the line lists.
+
+**Fig 3, the paper's one figure, is the three-level ordering.** Left, the offset-removed residual against wavelength with the reduction envelope behind it, so the code trace sits visibly flat inside a band it is 23x smaller than. Shape is plotted rather than the raw difference because a constant offset is absorbed by the nuisance offset every retrieval already fits. Right, the same three effects as one ordering in units of the single-bin error, 1.105σ against 0.58σ against 0.050σ.
+
+**Fig 2 plots all 21 pairs, not a selected 8**, which is the direct remedy for P6-D36. Cross-team pairs are coloured distinctly and the worst pair being cross-team is visible without reading the caption.
+
+**Standing rule applied. Every number in a figure is read from the committed JSON or npz at plot time, never typed into the script.** That is what caught both of the following.
+
+**Error caught 1.** The draft Fig 2 title said "15 of 21 pairs at or above one error bar", carried over from the blueprint. Counting from the JSON gives **16 of 21**. Corrected in the figure and in `12_astronomy_paper_blueprint.md`.
+
+**Error caught 2.** `fig_a4_floor.png` has carried the title "the published 5 percent error floor is **4 to 7 times** what the data supports" since 2026-11-16. The sweep's own crossings are 0.67 to 1.37 percent, so the ratio is **3.66x to 7.46x**. Rounding 3.66 up to 4 moved the lower bound in the result's own favour. The title now computes the ratio from the crossings and reads 3.7 to 7.5.
+
+**A third consistency trap, worth stating because it is not an error.** The reduction bar's σ must come from the JSON's own per-pair `shape_rms_over_err`, whose median is **1.105**, not from dividing the median shape by the median error, which gives 1.15. Each pair carries its own error bar so the median of the ratios is not the ratio of the medians, and 1.105 is what P6-D32 and P6-D36 quote. The figure now reads the per-pair ratios.
+
+**Fig 1 is BLOCKED, and it is the only one.** The seven reductions overplotted on the shared grid needs `data/v5_k218/canonical`, which `spectral_shift.json` points at with Windows separators and which does not exist on this machine. It is on Vedanth's, alongside the seven `v2_*_samples.npz` of P6-D35. **Add the canonical CSVs to that same file exchange.** Everything else in both papers' figure inventories is either built or already existed.
+
+**Layout.** All three follow the P5-D7 and T46u lesson, dpi 200, one shared legend rather than per-panel legends, top and right spines off, and annotations carrying opaque boxes so a label never lands on the data. Each was rendered and inspected rather than assumed, which is how the clipped suptitles and the legend covering two bars were found and fixed.

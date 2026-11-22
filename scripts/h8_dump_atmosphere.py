@@ -37,7 +37,7 @@ PLANET_GEOM = {"wasp96": lambda: tf.WASP96, "wasp39": lambda: tf.WASP39,
                "k218": lambda: tf.K2_18b}
 
 
-def main(planet, post, ndraw, seed, out, hifi=True, floor=0.01):
+def main(planet, post, ndraw, seed, out, hifi=True, floor=0.01, obs_path=None):
     geom = PLANET_GEOM[planet]()
     d = np.load(post, allow_pickle=True)
     names = [str(x) for x in d["fit_names"]]
@@ -55,7 +55,10 @@ def main(planet, post, ndraw, seed, out, hifi=True, floor=0.01):
     idx = rng.choice(len(s), size=ndraw, replace=True, p=w)
     thetas = np.vstack([wmean, s[idx]])
 
-    obs = np.load(f"data/real_ess/{planet}_samples.npz", allow_pickle=True)
+    # K2-18b's observation file is named k218cov_samples.npz, not k218_samples.npz,
+    # so the per-planet default is overridable rather than hardcoded (P6-D36).
+    obs_path = obs_path or f"data/real_ess/{planet}_samples.npz"
+    obs = np.load(obs_path, allow_pickle=True)
     cov = obs["covered"]
     wl, depth, err = obs["wlen"][cov], obs["x_obs"][cov], obs["sig_obs"][cov]
     o = np.argsort(wl)
@@ -128,5 +131,7 @@ if __name__ == "__main__":
     # comparison can see an opacity-data change at all, and it measures how much
     # the line lists move the spectrum relative to the code choice.
     ap.add_argument("--no-hifi", action="store_true")
+    ap.add_argument("--obs", default=None,
+                    help="observation npz; defaults to data/real_ess/<planet>_samples.npz")
     a = ap.parse_args()
-    main(a.planet, a.post, a.ndraw, a.seed, a.out, hifi=not a.no_hifi)
+    main(a.planet, a.post, a.ndraw, a.seed, a.out, hifi=not a.no_hifi, obs_path=a.obs)
