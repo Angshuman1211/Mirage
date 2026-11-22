@@ -81,7 +81,15 @@ axes[0, 0].text(0.52, 1.25, "$\\chi^2/N=1$", fontsize=8.4, color="0.25")
 axes[0, 2].text(PUBLISHED * 1.1, 3.0, "published\nfloor", fontsize=8.2, color="#b22222")
 axes[0, 0].text(0.92, 0.012, "floor the\ndata supports", fontsize=8.2, color="#1d6f66")
 axes[0, 0].legend(fontsize=8.2, loc="upper right", framealpha=0.95)
-fig.suptitle("A4   the published 5 percent error floor is 4 to 7 times what the data supports, "
+# computed, not typed: "4 to 7" rounded the lower bound UP from 3.66, which
+# overstates the result in its own favour (P6-D36 was this failure mode).
+_all = [c for p_ in PLANETS for a_ in ACOL
+        if (c := crossing([r["floor"] for r in by[(p_, a_)]],
+                          [r["chi2_n"] for r in by[(p_, a_)]]))]
+_lo, _hi = min(_all), max(_all)
+fig.suptitle(f"A4   the published 5 percent error floor is {PUBLISHED/(100*_hi):.1f} to "
+             f"{PUBLISHED/(100*_lo):.1f} times what the data supports "
+             f"({100*_lo:.2f} to {100*_hi:.2f} percent), "
              "and efficiency collapses at the honest floor", fontsize=11.5, y=0.985)
 fig.tight_layout(rect=[0, 0, 1, 0.96])
 out = Path("figures") / "fig_a4_floor.png"   # all figures live in figures/
