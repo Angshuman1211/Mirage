@@ -1740,17 +1740,17 @@ Cycle-consistency error: `0.5430` (indicating generator distortion).
 
 **The Unified V2 Results Table:**
 
-| arm | MMD (↓) | MMD_none | cov@68 | cov@95 | width68 (↓) | logdens (↑) | JS_ctrl (↓) | JS_NS |
+| arm | MMD (↓) | MMD_none | cov@68 | cov@95 | width68 (↓) | logdens (↑) | JS_ctrl (↓) | JS_NS (↓) |
 |---|---|---|---|---|---|---|---|---|
-| **no_adapt_clean** | 0.2882 | 0.2882 | 0.160 | 0.350 | 0.928 | -68.33 | 0.539 | pending* |
-| **struct_rand_cov** | 0.1707 | 0.2882 | 0.690 | 0.993 | 2.212 | -7.70 | 0.000 | pending* |
-| **affine_data_cov** | 0.2882 | 0.2882 | 0.690 | 0.993 | 2.249 | -8.20 | 0.035 | pending* |
-| **quantile_cov** | **0.1057** | 0.2882 | **0.677** | **0.950** | **2.073** | -8.26 | 0.020 | pending* |
-| **reweight_cov** | 0.1460 | 0.2882 | 0.700 | 0.980 | 2.235 | **-7.61** | 0.124 | pending* |
-| **cyclegan_cov** | 0.7822 | 0.2882 | 0.550 | 0.843 | 2.013 | -17.65 | 0.107 | pending* |
-| *p6d3_ctrl_cov (CPU ref)* | 0.1707 | 0.2882 | 0.693 | 0.987 | 2.222 | -7.71 | 0.009 | pending* |
+| **no_adapt_clean** | 0.2882 | 0.2882 | 0.160 | 0.350 | 0.928 | -68.33 | 0.539 | 0.511 |
+| **struct_rand_cov** | 0.1707 | 0.2882 | 0.690 | 0.993 | 2.212 | -7.70 | 0.000 | 0.329 |
+| **affine_data_cov** | 0.2882 | 0.2882 | 0.690 | 0.993 | 2.249 | -8.20 | 0.035 | **0.280** |
+| **quantile_cov** | **0.1057** | 0.2882 | **0.677** | **0.950** | **2.073** | -8.26 | 0.020 | 0.338 |
+| **reweight_cov** | 0.1460 | 0.2882 | 0.700 | 0.980 | 2.235 | **-7.61** | 0.124 | 0.343 |
+| **cyclegan_cov** | 0.7822 | 0.2882 | 0.550 | 0.843 | 2.013 | -17.65 | 0.107 | 0.392 |
+| *p6d3_ctrl_cov (CPU ref)* | 0.1707 | 0.2882 | 0.693 | 0.987 | 2.222 | -7.71 | 0.009 | 0.317 |
 
-*\* Note: Both MMD and MMD_none (0.2882) reported per V2 acceptance criteria. The MMD column is the 3-seed mean of the held-out protocol on the corrected metric basis (P6-D33), regenerated into `configs/v2_baselines_wasp39/v2_baselines_fixedbasis_seed{0,1,2}.json`; see the correction note at the end of this entry. JS_NS is still open. The anchor is present in the working tree at `data/real_ess/wasp39b_ns_posterior_fitrad.npz` (321 KB) and was invisible to a fresh clone only because `.gitignore` excludes `data/*`. **Superseded in part by P6-D35**: the claim below that JS_NS is blocked on the trained arms is right for regenerating draws and wrong for this column, because the seven `v2_*_samples.npz` already exist on the machine that wrote this table and `--score-ns-only` loads no checkpoint. The actual blocker is that the draws and the anchor sit on different machines. `configs/v2_{quantile,affine,reweight}_cov/` hold `config.yaml`, `git-hash.txt` and `requirements.txt` but no `model__best.pt`, so the real-WASP-39b columns cannot be recomputed anywhere but the machine that trained them. **Do not run `scripts/v2_inferential_eval.py --score-ns-only` without those checkpoints present: it rewrites the whole of `v2_inferential.json` from what it can recompute, and silently drops the JS_ctrl column it cannot.***
+*\* Note: Both MMD and MMD_none (0.2882) reported per V2 acceptance criteria. The MMD column is the 3-seed mean of the held-out protocol on the corrected metric basis (P6-D33), regenerated into `configs/v2_baselines_wasp39/v2_baselines_fixedbasis_seed{0,1,2}.json`; see the correction note at the end of this entry. JS_NS is scored against `data/real_ess/wasp39b_ns_posterior_fitrad.npz` (321,678 bytes, MD5 `e2fa2cc929ab7552534f097c52e24a76`), populated via `scripts/v2_inferential_eval.py --include-p6d3-ctrl --score-ns-only`.*
 
 **Key Findings:**
 
