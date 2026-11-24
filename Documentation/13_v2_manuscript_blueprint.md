@@ -163,18 +163,24 @@ Owner Vedanth. Drafted in `09_track2_v6_related_work.md`, references verified th
 
 ## 9. Decisions owed before writing closes
 
-1. **V2's JS_NS column, now unblocked and cheap** (P6-D35). V2's stated acceptance test
-   requires MMD *and* posterior JS to NS, and the column reads `pending` for all seven arms.
-   The blocker is **not** the uncommitted arm checkpoints, which `--score-ns-only` never
-   loads. It is that the two halves sit on different laptops. The seven `v2_*_samples.npz`
-   draws are on Vedanth's machine, the 314 KB nested-sampling anchor
-   `wasp39b_ns_posterior_fitrad.npz` is on yours, and both are gitignored under `data/*`.
-   Send him the anchor, have him pull for the P6-D33 guard and run
-   `python scripts/v2_inferential_eval.py --score-ns-only`, and have him send the seven npz
-   back so neither artifact stays single-copy. Filling the column from **his** npz rather
-   than resampling is what keeps it consistent with the quantiles already beside it in the
-   same row. Publishing a table containing "pending" is not an option, and dropping the
-   column is no longer the fallback it was.
+1. ~~**V2's JS_NS column**~~ **DONE 2026-11-24 (P6-D41).** All seven arms scored from the
+   exchanged npz plus the local anchor. `protocol.ns_anchor_present` is now `true` and no
+   "pending" remains. **What to write, in this order:**
+   - Report the column with the **reproduction floor of 0.013** stated first, derived from the
+     two independently trained `domain_random` models (`struct_rand_cov` 0.329 against
+     `p6d3_ctrl_cov` 0.317). Without that number the column cannot be read.
+   - Present **four tiers, not seven ranks**. `affine_data_cov` 0.280 alone, then an
+     indistinguishable middle of `struct_rand` 0.329, `quantile` 0.338 and `reweight` 0.343
+     whose gaps of 0.009 and 0.005 are both below the floor, then `cyclegan` 0.392, then
+     `no_adapt_clean` 0.511.
+   - Lead the discussion on the negative. **MMD does not predict JS_NS**, Spearman rho = +0.143
+     at p = 0.787 across the six distinct arms. Give `cyclegan` as the sharp case, worst MMD at
+     0.7822 yet better than no adaptation on JS_NS. Give `quantile` as the second case, best MMD
+     yet fourth on JS_NS.
+   - **Phrase the statistics correctly.** Six arms is weak power, so write "no evidence of a
+     relationship", never "evidence of no relationship". A referee will check this sentence.
+   - Limitations to state rather than hedge: one target, one visit, one anchor, and nested
+     sampling is a model-dependent reference not ground truth.
 2. **Author order**, now that an astronomy paper is also in play
    (`12_astronomy_paper_blueprint.md`).
 3. **arXiv v2 goes last** (P6-D10), carrying four corrections: the chi2 floor mismatch, the OT
