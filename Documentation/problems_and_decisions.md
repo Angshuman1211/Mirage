@@ -2018,3 +2018,155 @@ Reduction choice is 2.0x the line-list swap and 22.9x the code choice. **A delib
 **Fig 1 is BLOCKED, and it is the only one.** The seven reductions overplotted on the shared grid needs `data/v5_k218/canonical`, which `spectral_shift.json` points at with Windows separators and which does not exist on this machine. It is on Vedanth's, alongside the seven `v2_*_samples.npz` of P6-D35. **Add the canonical CSVs to that same file exchange.** Everything else in both papers' figure inventories is either built or already existed.
 
 **Layout.** All three follow the P5-D7 and T46u lesson, dpi 200, one shared legend rather than per-panel legends, top and right spines off, and annotations carrying opaque boxes so a label never lands on the data. Each was rendered and inspected rather than assumed, which is how the clipped suptitles and the legend covering two bars were found and fixed.
+
+### P6-D39 — the WISE 0855 between-team comparison is impossible because nobody deposited a reduced spectrum, but the one knob Miles names is measurable on public data and moves the spectrum by about 7 percent [Phase 6, 2026-11-24]
+
+**Why this was opened.** Miles et al. 2026 (arXiv:2609.20664, AJ in press) section 3.3 states
+verbatim that their reduction differs from Rowland et al. 2024 and Wilson et al. 2025 "in that
+we remove the excess background and use JWST-pipeline-derived errors for analysis". That is the
+V5 / H7 situation in a new regime, so the question was whether the K2-18b design ports to it.
+
+**The gate failed, for a worse reason than P6-D14.** Four papers use JWST GO 2327 and every one
+of them points only at raw MAST. Miles 2026 gives `doi:10.17909/j9rb-j449`. Rowland et al. 2024
+(ApJL 977, L49) gives `doi:10.17909/rjtp-zn54`. Wilson et al. 2025 is published as AJ
+10.3847/1538-3881/ae17ca and is an exomoon search, so it yields light curves rather than a
+science spectrum. Kothari et al. 2026 (arXiv:2609.21881, ApJ 10.3847/1538-4357/ae8e74) runs
+Brewster retrievals on the same data. **No data availability statement, no Zenodo, no deposited
+reduced spectrum anywhere.** At P6-D14 the problem was that only one reduction existed. Here
+several demonstrably exist and are stated to differ, but none is downloadable, so comparing them
+would mean re-creating them from methods prose. That measures our own implementation rather than
+independent-team shift and destroys the single property that makes V5 / H7 worth anything.
+
+**Independence is fatal on its own.** Rowland is author 4 on Miles. Wilson is last author on
+Miles. Kothari is author 14 on Miles and first author on 2609.21881, which also lists Miles,
+Rowland and Wilson. It is one collaboration making four passes, not two teams. Never describe
+these as independent reductions.
+
+**What was built instead.** `scripts/w0855_extract.py` and `scripts/w0855_knob_analyse.py`.
+Stages 1 and 2 are default pipeline by Miles sections 3.1 and 3.2, so the custom work starts at
+the stage-2 per-integration products, which are 64 MB rather than the 28.7 GB of ramps. All 44
+NRS1 integrations, `NGROUPS` 996, 2.848 to 5.182 um, CAL_VER 3.0.0, CRDS jwst_1584.pmap. Box
+extraction on a Chebyshev trace with a 9-pixel aperture, background as the median of the 3
+pixels outside each side. **Both arms share the same calints, so the result is insensitive to
+the pipeline version and CRDS context MAST used.** Only the knob differs.
+
+**The number, on Miles's own SNR band of 3.827 to 5.170 um, 745 bins.**
+
+| quantity | value | note |
+|---|---|---|
+| background offset | 71,772 ppm | 7.2 percent of source flux |
+| background shape RMS | 69,663 ppm | after the offset is removed |
+| reproducible part of the shape | 69,512 ppm | split-half r = 0.999 |
+| noise part of the shape | 2,374 ppm | 29:1 in favour of real structure |
+| low-side minus high-side pedestal | 16,683 ppm | a genuine spatial gradient |
+
+Offset is robust to where the background annulus is placed, at 65,913 / 71,772 ppm for two
+usable choices. **Shape is not robust to that choice** and must not be quoted as a single number
+yet.
+
+**The caveat that decides whether this is publishable.** In the Miles band the background rows
+sit at 1.7 to 3.1 percent of peak while the floor at rows 20 and 21 is about 0.8 percent, so a
+large part of what the knob removes is PSF wing rather than sky. On a 28-row subarray the
+background-subtraction knob is **confounded with aperture correction**, and the wavelength
+dependence of the PSF width is the likely physical origin of the 7 percent shape. That is a
+property of the measurement, not a bug in ours, and it is arguably the interesting part, but it
+has to be separated before any claim is made.
+
+**What must not be claimed.** The knob shifts the mean spectrum, which is what retrievals in
+Rowland and Kothari consume. It does not obviously threaten the Miles variability result,
+because a static offset largely divides out of a percent-variation map. That has not been
+measured here and is the first test if this is taken further.
+
+**Decision.** The between-team port is dead and is not to be reopened. The controlled single-knob
+study is alive, has a real effect to measure, and is a third paper rather than an addition to
+either current manuscript. **Both manuscripts still come first.** Artifacts under
+`data/jwst_w0855_cal/`, gitignored, and belong in `zenodo_deposit/` if this proceeds.
+
+### P6-D40 — the Vedanth file exchange completed, both blockers cleared, nothing was lost [Phase 6, 2026-11-24]
+
+**Arrived and verified.** All 7 `v2_*_samples.npz` and a `canonical.zip` holding all 9 reductions.
+Moved to `data/real_ess/` and extracted to `data/v5_k218/canonical/` respectively.
+
+The 7 posterior files each carry keys `theta, log_q, x_obs, sig_obs, covered, wlen, arm, planet`
+with `theta` of shape (1000, 6) and `x_obs` of length 52, which is consistent with the 6/6 shared
+parameter count P6-D35 predicted for `real_compare.compare`. All 7 md5 are distinct, so no file
+was silently duplicated in transit.
+
+The 9 canonical CSVs carry `wavelength_um, transit_depth, depth_error, instrument` and match the
+9 names `spectral_shift.json` records exactly, 7 G395H plus 2 NIRISS. Row counts are 1044 for the
+four Schmidt G395H reductions, 1104 to 1106 for the three Luque reductions, and 3582 to 3585 for
+the two Schmidt NIRISS reductions.
+
+**The scare in P6-D39 was wrong and is retracted.** The files were never lost. His project root is
+`MIRAGE/`, not `Exoplanet/Project/`, so the folder that appeared to hold only `abc` was a different
+folder, and his assistant's original claim was correct throughout.
+
+**What this unblocks.** The JS_NS column of the V2 table, which needs the anchor here plus his 7
+arms, and Fig 1 of the astronomy paper, which is the 7 G395H reductions overplotted on the shared
+grid. P6-D38 named Fig 1 as the only blocked figure in either paper.
+
+**Transfer lesson worth keeping.** `data/*` is gitignored on both machines, so git was never going
+to move any of this and a push would have looked like success while delivering nothing. The working
+channel was a direct file send with hashes checked on arrival.
+
+### P6-D41 — the JS_NS column is populated for all seven arms, and it does not agree with the distributional metric [Phase 6, 2026-11-24]
+
+**Run.** `python scripts/v2_inferential_eval.py --score-ns-only --include-p6d3-ctrl`, after P6-D40
+put the seven `v2_*_samples.npz` and the anchor on one machine. No checkpoint was loaded, exactly
+as P6-D35 predicted. `protocol.ns_anchor_present` is now `true`. The P6-D33 merge guard held and
+`js_to_struct_rand` survived the write, verified against a backup taken before the run.
+
+**The completed table.** N = 1000 unweighted draws per arm.
+
+| arm | MMD | MMD_none | cov@68 | cov@95 | width68 | logdens | JS_ctrl | **JS_NS** |
+|---|---|---|---|---|---|---|---|---|
+| no_adapt_clean | 0.2882 | 0.2882 | 0.160 | 0.350 | 0.928 | -68.33 | 0.539 | **0.511** |
+| struct_rand_cov | 0.1707 | 0.2882 | 0.690 | 0.993 | 2.212 | -7.70 | 0.000 | **0.329** |
+| affine_data_cov | 0.2882 | 0.2882 | 0.690 | 0.993 | 2.249 | -8.20 | 0.035 | **0.280** |
+| quantile_cov | 0.1057 | 0.2882 | 0.677 | 0.950 | 2.073 | -8.26 | 0.020 | **0.338** |
+| reweight_cov | 0.1443 | 0.2882 | 0.700 | 0.980 | 2.235 | -7.61 | 0.124 | **0.343** |
+| cyclegan_cov | 0.7822 | 0.2882 | 0.550 | 0.843 | 2.013 | -17.65 | 0.107 | **0.392** |
+| p6d3_ctrl_cov | 0.1707 | 0.2882 | 0.693 | 0.987 | 2.222 | -7.71 | 0.009 | **0.317** |
+
+**A reproduction floor falls out of the control arm, and it is the most useful number here.**
+`p6d3_ctrl_cov` is a CPU-trained reproduction of the `domain_random` arm, so it shares
+`struct_rand_cov`'s MMD key by construction. Two independently trained models of the same method
+give JS_NS **0.329 and 0.317**, so the reproduction floor is **0.013**. Any JS_NS difference
+smaller than that is not meaningful, and this is the calibration that lets the column be read at
+all. Quote it whenever the column is quoted.
+
+**Applying the floor collapses the middle into one tier.**
+
+| gap | size | verdict |
+|---|---|---|
+| affine 0.280 → struct_rand 0.329 | 0.049 | meaningful |
+| struct_rand 0.329 → quantile 0.338 | 0.009 | **below floor** |
+| quantile 0.338 → reweight 0.343 | 0.005 | **below floor** |
+| reweight 0.343 → cyclegan 0.392 | 0.050 | meaningful |
+| cyclegan 0.392 → no_adapt 0.511 | 0.118 | meaningful |
+
+So the honest reading is four tiers, not seven ranks. `affine_data_cov` alone at the top, then an
+indistinguishable `{struct_rand, quantile, reweight}` middle, then `cyclegan`, then
+`no_adapt_clean` far behind.
+
+**The headline negative. The distributional metric does not predict the inferential outcome.**
+Across the six distinct V2 arms, MMD against JS_NS gives Spearman **rho = +0.143, p = 0.787** and
+Kendall tau = +0.067. Dropping `affine_data_cov`, whose MMD is measured in a basis where an affine
+map is a no-op and is therefore uninformative, gives rho = +0.600 at p = 0.285, still not
+significant. **The sharpest single case is cyclegan**, whose MMD of 0.7822 is far worse than no
+adaptation at 0.2882, and which nevertheless beats no adaptation on JS_NS, 0.392 against 0.511.
+The arm that wins on MMD, `quantile_cov` at 0.1057, is only fourth on JS_NS.
+
+**What must not be claimed.** With six arms these rank statistics are weak. `p = 0.787` is **no
+evidence of a relationship, not evidence of no relationship**, and the paper must say it that way.
+The result is also one target, one visit, one nested-sampling anchor, and NS is itself a
+model-dependent reference rather than ground truth. State all four in the limitation paragraph.
+
+**Why this matters for framing B.** This is a clean sim-to-real negative of exactly the kind
+`06_v2_post_rejection_plan.md` commits to. Choosing an adaptation method by its distributional
+score would have picked `quantile_cov`, and on the real target that choice is indistinguishable
+from two other arms and worse than `affine_data_cov`.
+
+**Housekeeping cleared.** The six rescored arms now carry posix `samples_npz` paths, so the Windows
+separator problem in `v2_inferential.json` is fixed for every arm including `p6d3_ctrl_cov`.
+`configs/v5_k218_h7/spectral_shift.json` is **also fixed, 2026-11-24**. It held exactly one backslash value, `canonical_dir`, now `data/v5_k218/canonical`, applied as a targeted text replacement rather than a load-and-redump so no float was reformatted. Verified against a pre-edit backup: **one difference in the whole file**, all seven `summary_stats` bit-identical including `all7_median_shape_rms_over_err` 1.1049739173006885, 21 pairs and 7 reductions intact, and the path now resolves to the 9 canonical CSVs. md5 02b4818f -> 3faa0203. **No Windows separators remain anywhere in the committed artifacts.**

@@ -246,7 +246,7 @@
   },
   "real_wasp39b": {
     "no_adapt_clean": {
-      "samples_npz": "data\\real_ess\\v2_no_adapt_clean_samples.npz",
+      "samples_npz": "data/real_ess/v2_no_adapt_clean_samples.npz",
       "n_draws": 1000,
       "quantiles_16_50_84": {
         "T": [
@@ -300,7 +300,7 @@
       }
     },
     "struct_rand_cov": {
-      "samples_npz": "data\\real_ess\\v2_struct_rand_cov_samples.npz",
+      "samples_npz": "data/real_ess/v2_struct_rand_cov_samples.npz",
       "n_draws": 1000,
       "quantiles_16_50_84": {
         "T": [
@@ -354,7 +354,7 @@
       }
     },
     "affine_data_cov": {
-      "samples_npz": "data\\real_ess\\v2_affine_data_cov_samples.npz",
+      "samples_npz": "data/real_ess/v2_affine_data_cov_samples.npz",
       "n_draws": 1000,
       "quantiles_16_50_84": {
         "T": [
@@ -408,7 +408,7 @@
       }
     },
     "quantile_cov": {
-      "samples_npz": "data\\real_ess\\v2_quantile_cov_samples.npz",
+      "samples_npz": "data/real_ess/v2_quantile_cov_samples.npz",
       "n_draws": 1000,
       "quantiles_16_50_84": {
         "T": [
@@ -462,7 +462,7 @@
       }
     },
     "reweight_cov": {
-      "samples_npz": "data\\real_ess\\v2_reweight_cov_samples.npz",
+      "samples_npz": "data/real_ess/v2_reweight_cov_samples.npz",
       "n_draws": 1000,
       "quantiles_16_50_84": {
         "T": [
@@ -516,7 +516,7 @@
       }
     },
     "cyclegan_cov": {
-      "samples_npz": "data\\real_ess\\v2_cyclegan_cov_samples.npz",
+      "samples_npz": "data/real_ess/v2_cyclegan_cov_samples.npz",
       "n_draws": 1000,
       "quantiles_16_50_84": {
         "T": [
@@ -570,7 +570,7 @@
       }
     },
     "p6d3_ctrl_cov": {
-      "samples_npz": "data\\real_ess\\v2_p6d3_ctrl_cov_samples.npz",
+      "samples_npz": "data/real_ess/v2_p6d3_ctrl_cov_samples.npz",
       "n_draws": 1000,
       "quantiles_16_50_84": {
         "T": [
@@ -619,7 +619,7 @@
         "log_H2O": 0.006476939940811179,
         "log_CO2": 0.0071968815138664455,
         "log_CH4": 0.014516407680289313,
-        "log_CO": 0.007128418013353241,
+        "log_CO": 0.007128418013353243,
         "log_NH3": 0.00883279895208665
       }
     }

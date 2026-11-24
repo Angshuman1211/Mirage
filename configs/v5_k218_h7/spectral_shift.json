@@ -321,5 +321,5 @@
     "all7_max_shape_rms_ppm": 83.49061074637687,
     "all7_median_shape_rms_over_err": 1.1049739173006885
   },
-  "canonical_dir": "data\\v5_k218\\canonical"
+  "canonical_dir": "data/v5_k218/canonical"
 }
