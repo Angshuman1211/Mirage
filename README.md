@@ -401,31 +401,49 @@ frames defining the real domain, 56 against 3,241, so the sign of the contaminat
 predictable from the setup. P6-D29's three N56 rows and its description of the pooled domain have
 also been corrected against its own committed JSONs. **No verdict or conclusion changed.**
 
-**Two papers remain, and between them one run.**
+**One merged paper, at A&A.** Decided 2026-11-24, replacing the two-paper plan that ran
+until then. The reduction measurement is the paper and the adaptation result is a subordinate
+section inside it, never a co-headline. The reason is empirical rather than aesthetic. The last
+two rejections, Sim2Science and NeurIPS ML4Sys, both turned on the weakest component in the
+submission, so the weak leg must not share billing with the strong one.
 
-**The v2 manuscript**, framing B at TMLR, blueprinted in
-[13_v2_manuscript_blueprint.md](Documentation/13_v2_manuscript_blueprint.md). One decision is
-owed inside it: V2's acceptance test requires posterior JS to the nested-sampling anchor as
-well as MMD, and that column still reads pending. It is **not** blocked on the uncommitted
-arm checkpoints (P6-D35). The seven saved flow-draw files and the 314 KB nested-sampling
-anchor are both gitignored under `data/*` and sit on different machines, so the fix is one
-file exchange followed by `python scripts/v2_inferential_eval.py --score-ns-only`.
+**Venue.** A&A, not TMLR and not AJ. The two closest predecessors this work builds on are both
+there, Gebhard et al. 2025 (A&A 693, A42) for the fm4ar backbone and Vasist et al. 2023
+(A&A 672, A147) for NPE retrieval. A&A takes both machine-learning retrieval methods and JWST
+systematics work, which is what a merged paper needs and what neither TMLR nor AJ offers.
+Draft skeleton at `Paper/Astronomy_and_Astrophysics_Template/mirage_aa.tex`, structure and
+verified numbers in place, prose left as blueprint points.
 
-**A second, astronomy-facing paper** from V5 / H7 plus A5 plus A4, authorised 2026-11-22
-(P6-D34) after the reduction-systematics literature was audited in
-[11_prior_work_reduction_audit.md](Documentation/11_prior_work_reduction_audit.md). None of
-Schleich 2025, Roy-Perez 2026 or Schmidt 2025 benchmarks a reduction shift against a
-radiative-transfer-code difference, publishes a between-reduction ppm figure, or states what
-error floor the data supports. Target RASTI, blueprint in
-[12_astronomy_paper_blueprint.md](Documentation/12_astronomy_paper_blueprint.md).
+**The main result.** A three-level ordering on one grid with one error bar, reduction 57.3 ppm
+against an opacity-table swap at 29.2 ppm against the radiative-transfer code choice at 2.5 ppm.
+Against a matched-physics yardstick the reduction shift is **22.9x the code difference at the
+median, 12.9x to 33.4x across the 21 pairs**, and 7.5x in the conservative worst case. This
+replaces the "6.4x to 9.5x" that was both cross-target (P6-D34) and median-to-max off a stale
+table (P6-D36). The literature audit in
+[11_prior_work_reduction_audit.md](Documentation/11_prior_work_reduction_audit.md) establishes
+that none of Schleich 2025, Roy-Perez 2026 or Schmidt 2025 benchmarks a reduction shift against
+a radiative-transfer-code difference, publishes a between-reduction ppm figure, or states what
+error floor the data supports.
 
-**No runs left. All compute in the project is complete** as of 2026-11-22 (P6-D37). A5 / H8
-was rerun on K2-18b, so the reduction-versus-forward-model ratio is finally same planet, same
-instrument, same grid, same error bar. It is **22.9x at the median, 12.9x to 33.4x across the
-21 reduction pairs**, replacing the "6.4x to 9.5x" that was both cross-target (P6-D34) and
-median-to-max off a stale table (P6-D36). A three-level ordering comes with it, reduction
-57.3 ppm against an opacity-table swap at 29.2 ppm against the code choice at 2.5 ppm, all on
-one grid with one error bar.
+![Seven reductions, two teams, one visit](figures/fig_v5h7_reductions.png)
+
+Seven reductions of a single K2-18b G395H visit on the shared grid, with the residual from the
+per-bin median below against the median single-bin error band. Two teams, Schmidt contributing
+four pipelines and Luque three. Rebuilt independently from the canonical CSVs this reproduces
+the recorded spread to about one per cent, 53 of 55 bins and 21 pairs either way.
+
+**The subordinate section** carries the V2 adaptation result, blueprinted in
+[13_v2_manuscript_blueprint.md](Documentation/13_v2_manuscript_blueprint.md). Its JS_NS column is
+**complete as of 2026-11-24** (P6-D41), all seven arms scored by
+`python scripts/v2_inferential_eval.py --score-ns-only --include-p6d3-ctrl` once the file
+exchange of P6-D40 put the draws and the nested-sampling anchor on one machine. The finding is a
+negative. MMD does not predict posterior JS to the anchor, Spearman rho = +0.143 at p = 0.787,
+and the reproduction floor of 0.013 from the duplicate `domain_random` arm collapses the middle
+three arms into one indistinguishable tier. With six arms this is **no evidence of a
+relationship, which is not evidence of no relationship**, and the text must say it that way.
+
+**No runs left. All compute in the project is complete** as of 2026-11-22 (P6-D37), with the
+JS_NS column closed on 2026-11-24 and every figure built. What remains is writing.
 
 arXiv v2 goes last, by decision (P6-D10).
 
@@ -550,6 +568,13 @@ Project/
 **Figure convention.** Analysis scripts write their numbers into `data/<item>/` and their pictures
 into `figures/`. If you embed a new figure in this README, add it to the un-ignore list in
 `.gitignore` or it renders as a broken image for everyone who clones.
+
+**A caveat on that rule.** It was written on the assumption that figures need not be tracked
+because they can be rebuilt from the scripts. That assumption does not hold here, because
+`data/*` is gitignored too and only three files under it are tracked, so a fresh clone can
+rebuild nothing. Every figure that appears in a paper is therefore un-ignored explicitly, and
+the whole `figures/` tree is about 11 MB, which is small enough that tracking more of it costs
+little. The genuinely large exploratory corner plots stay ignored.
 
 ---
 

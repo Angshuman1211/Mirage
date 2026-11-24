@@ -78,6 +78,11 @@ figures/*.pdf
 !figures/fig_h11_transfer.png
 !figures/fig_g13_depth_noise.png
 !figures/fig_a3_noise_proxy.png
+# Paper figures. Un-ignored because data/* is gitignored too, so a clone cannot
+# rebuild them. Added 2026-11-24 with the merged A&A paper.
+!figures/fig_v5h7_reductions.png
+!figures/fig_v5h7_pairs.png
+!figures/fig_h8_three_level.png
 
 # WASP-96b reduction artifacts (P5-D3): large FITS + raw data + local configs
 pipeline_outputs_directory_*/
